@@ -1,0 +1,4 @@
+# Raw dataset: store and check out byte-for-byte (no line-ending conversion, no diffs).
+csidata/** -text -diff
+csvdata/** -text -diff
+*.pcap binary

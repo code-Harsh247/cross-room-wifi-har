@@ -24,7 +24,11 @@ Three tasks:
 - `scripts/`: one entry point per stage. `tests/`: pytest. `configs/task1.yaml`: all settings.
 - `reports/`: write-ups. `reports/figures/`: committed figures.
 - `outputs/` and `data_cache/` are git-ignored, so copy final figures to `reports/figures/`.
-- Raw data lives at the repo root in `csidata/` (A, with `validation/`) and `csvdata/` (B). It is git-ignored and never committed.
+- **The raw dataset is committed** at the repo root:
+  - `csidata/`: Room A, including `validation/`;
+  - `csvdata/`: Room B.
+  - `.gitattributes` keeps these files byte-identical, with no line-ending conversion.
+  - Nothing to download: run the cache build after cloning.
 
 ## Key commands
 ```bash
@@ -49,6 +53,19 @@ table, seqs = load_sequences(cfg)  # full per-capture sequences (A: 150 rows, B:
 - **Features come only from the CSI signal.** Never use filenames, folders, capture length or recording time.
 - **Task 3 labels:** source-room labels plus the K target support captures only. That includes model or encoder *selection*: anything Task 3 reuses must be chosen without target activity labels (see `reports/task1_router_variants.md` §5).
 - **Python only.** Do not use the dataset authors' MATLAB code or notebook, or ports of it. Do not use other teams' code.
+- **The validation sets are fixed.**
+  - Room A uses the supplied `csidata/validation/`.
+  - Room B uses `splits/room_b_validation.json` (25 captures per class, seed 42).
+  - Never edit, regenerate or "rebalance" either one.
+- **Raw data is read-only.** Never modify, rename, move or delete anything in `csidata/` or `csvdata/`. Known junk is already handled by the pipeline: the duplicate `stand65(1).pcap`, `.DS_Store` files, `model_plot_1.png`, truncated packets and short captures.
+- **Do not change Task 1 preprocessing defaults** in `configs/task1.yaml` (packet filter, resampling, null subcarriers, window length). Every reported Task 1 number depends on them. Put new settings in a new config (e.g. `configs/task2.yaml`).
+- **Every reported number must come from a committed script.** Never hand-edit results into a report. Rerun the script and copy from its saved output.
+- **AI-use disclosure is required** by the brief, along with each member's contribution. When AI tools contribute to a milestone, note it for the project's AI-use and contribution disclosure.
+
+## Working together (two people on `main`)
+- Run `git pull --rebase` before starting work and again before pushing. Push small commits often.
+- **Never force-push, and never rewrite published history** (`filter-branch`, `rebase` of pushed commits, `push --force`). The force-push permission in `.claude/settings.json` was for a one-off clean-up only.
+- Do not edit the other person's in-progress files without asking. Task 1 code and reports are finished: change them only to fix a bug, and update the affected report in the same commit.
 
 ## Known pitfalls
 - **Format confound.** Rooms A and B differ in scale, noise and smoothness for non-physical reasons, so a model can tell them apart from format alone.
@@ -65,5 +82,5 @@ table, seqs = load_sequences(cfg)  # full per-capture sequences (A: 150 rows, B:
   - small and frequent, one per passed gate or milestone (the history is graded);
   - imperative subject line;
   - **no AI attribution or `Co-Authored-By` lines** (`.claude/settings.json` disables them).
-- **Never commit** `data_cache/`, `outputs/`, checkpoints or raw data.
+- **Never commit** `data_cache/`, `outputs/` or model checkpoints. Large generated files belong in the git-ignored folders.
 - **Windows + Git Bash:** backslashes in heredoc-generated Python can get mangled. Prefer writing files with the editor tools over shell heredocs.

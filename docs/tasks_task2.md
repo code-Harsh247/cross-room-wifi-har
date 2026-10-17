@@ -40,7 +40,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 
 ## T0: Hand-over setup
 - [ ] Clone `code-Harsh247/cross-room-wifi-har`. Ask Harsh for collaborator access, since the repo is private.
-- [ ] Download the dataset (link on the last slide). Place it at the repo root as `csidata/` (Room A `.pcap`, with `validation/`) and `csvdata/` (Room B `.csv`). Both are git-ignored.
+- [ ] The dataset comes with the clone: `csidata/` (Room A `.pcap`, with `validation/`) and `csvdata/` (Room B `.csv`), about 800 MB. Nothing to download; the first clone just takes a while. Treat it as read-only.
 - [ ] Python 3.13 with numpy, scipy, pandas, scikit-learn, PyTorch (CUDA if available), pyyaml, joblib and matplotlib.
 - [ ] Install UMAP: `pip install umap-learn`. Add `torch` and `umap-learn` to `pyproject.toml` dependencies.
 - [ ] Rebuild the Task 1 caches: `python scripts/build_windows.py --rebuild`
