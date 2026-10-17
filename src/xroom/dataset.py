@@ -1,14 +1,22 @@
-"""Build and load the cached window dataset."""
+"""Build and load the cached datasets.
+
+* sequences: every capture as one (rows, 256) float16 sequence (Room A resampled to
+  150 rows, Room B 500 rows), plus the capture table. Decoding happens only here.
+* windows: fixed-length windows cut from the sequences, for one window length.
+"""
 from __future__ import annotations
 
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 
 from .catalog import build_catalog
 from .splits import assign_splits
-from .windows import room_a_windows, room_b_windows
+from .windows import capture_sequence, slice_windows
+
+CAPTURE_COLUMNS = ["capture_id", "room", "activity", "split", "dev_fold"]
 
 
 def cache_paths(cfg: dict, length: int) -> tuple[Path, Path, Path]:
@@ -16,8 +24,53 @@ def cache_paths(cfg: dict, length: int) -> tuple[Path, Path, Path]:
     return d / f"windows_L{length}.npy", d / f"windows_L{length}_meta.csv", d / f"captures_L{length}.csv"
 
 
-def build_windows(cfg: dict, length: int | None = None, stride_b: int | None = None, log=print) -> None:
-    """Decode every capture, cut windows, and write them to the cache.
+def sequences_path(cfg: dict) -> Path:
+    return Path(cfg["paths"]["cache_dir"]) / "sequences.joblib"
+
+
+def build_sequences(cfg: dict, log=print) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
+    """Decode every capture once. Returns (captures table, {capture_id: sequence}).
+    Excluded captures appear in the table with ``excluded_reason`` and no sequence."""
+    catalog = assign_splits(build_catalog(cfg), cfg)
+    captures, seqs = [], {}
+    for i, row in enumerate(catalog.itertuples(index=False)):
+        seq, info = capture_sequence(row.room, row.path, cfg)
+        captures.append({c: getattr(row, c) for c in CAPTURE_COLUMNS} | info)
+        if seq is not None:
+            seqs[row.capture_id] = seq.astype(np.float16)
+        if (i + 1) % 250 == 0:
+            log(f"  decoded {i + 1}/{len(catalog)} captures")
+    table = pd.DataFrame(captures)
+    path = sequences_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump((table, seqs), path)
+    return table, seqs
+
+
+def load_sequences(cfg: dict, rebuild: bool = False, log=print) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
+    path = sequences_path(cfg)
+    if rebuild or not path.exists():
+        return build_sequences(cfg, log)
+    return joblib.load(path)
+
+
+def windows_from_sequences(table: pd.DataFrame, seqs: dict[str, np.ndarray], length: int,
+                           stride: int | None = None) -> tuple[np.ndarray, pd.DataFrame, pd.DataFrame]:
+    """Cut every sequence into windows. Returns (windows float16, window meta, capture table + n_windows)."""
+    windows, meta, n_windows = [], [], []
+    for row in table.itertuples(index=False):
+        w, starts = slice_windows(seqs.get(row.capture_id), length, stride)
+        n_windows.append(len(starts))
+        windows.append(w.astype(np.float16))
+        base = {c: getattr(row, c) for c in CAPTURE_COLUMNS}
+        meta += [{**base, "start": s} for s in starts]
+    caps = table.assign(n_windows=n_windows)
+    return np.concatenate(windows), pd.DataFrame(meta), caps
+
+
+def build_windows(cfg: dict, length: int | None = None, stride: int | None = None,
+                  rebuild_sequences: bool = False, log=print) -> None:
+    """Cut windows of ``length`` rows (non-overlapping unless ``stride`` is given) and cache them.
 
     Outputs:
         windows_L{length}.npy        (N, length, 256) float16 amplitude windows
@@ -25,35 +78,15 @@ def build_windows(cfg: dict, length: int | None = None, stride_b: int | None = N
         captures_L{length}.csv       one row per capture with packet counts / exclusion reasons
     """
     length = length or cfg["windows"]["length"]
-    stride_b = stride_b or cfg["windows"]["room_b_stride"]
-    catalog = assign_splits(build_catalog(cfg), cfg)
-
-    windows, meta, captures = [], [], []
-    for i, row in enumerate(catalog.itertuples(index=False)):
-        if row.room == "A":
-            cw = room_a_windows(row.path, cfg, length)
-        else:
-            cw = room_b_windows(row.path, cfg, length, stride_b)
-        base = {
-            "capture_id": row.capture_id,
-            "room": row.room,
-            "activity": row.activity,
-            "split": row.split,
-            "dev_fold": row.dev_fold,
-        }
-        captures.append({**base, "n_windows": len(cw.starts), **cw.info})
-        for s, w in zip(cw.starts, cw.windows):
-            windows.append(w.astype(np.float16))
-            meta.append({**base, "start": s})
-        if (i + 1) % 250 == 0:
-            log(f"  {i + 1}/{len(catalog)} captures")
-
+    stride = stride or cfg["windows"].get("stride")
+    table, seqs = load_sequences(cfg, rebuild_sequences, log)
+    x, meta, caps = windows_from_sequences(table, seqs, length, stride)
     x_path, meta_path, cap_path = cache_paths(cfg, length)
     x_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(x_path, np.stack(windows))
-    pd.DataFrame(meta).to_csv(meta_path, index_label="window_idx")
-    pd.DataFrame(captures).to_csv(cap_path, index=False)
-    log(f"wrote {len(windows)} windows -> {x_path}")
+    np.save(x_path, x)
+    meta.to_csv(meta_path, index_label="window_idx")
+    caps.to_csv(cap_path, index=False)
+    log(f"wrote {len(x)} windows -> {x_path}")
 
 
 def load_windows(cfg: dict, length: int | None = None, mmap: bool = True) -> tuple[np.ndarray, pd.DataFrame]:

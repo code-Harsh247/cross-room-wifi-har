@@ -41,7 +41,7 @@ Both    ──► capture-level splits (val / dev, dev → train / holdout)
 | Packet filter | Drop packets with ≥ 90% of their energy in subcarriers 128–191 | These are 20 MHz frames (ACKs etc.) with no CSI on the other 192 subcarriers. Room B contains almost none, so keeping them would be a free room cue. |
 | Too few packets | Drop captures with < 20 full-band packets | You cannot reconstruct 4 s of motion from 1–15 frames. |
 | Room A length | Linear resampling in **time** of the remaining ~59 packets onto 150 rows | Gives the required 150 × 256 shape and keeps the real timing (packets arrive irregularly). |
-| Room B windows | Non-overlapping, stride 150 → rows 0–149, 150–299, 300–449 (last 50 rows unused) | Deterministic; windows never cross captures. Overlap can be added for training later via `--stride-b`. |
+| Room B windows | Non-overlapping, stride 150 → rows 0–149, 150–299, 300–449 (last 50 rows unused) | Deterministic; windows never cross captures. Overlap can be added later via `--stride`. Shorter windows are contiguous slices of the same sequences (see `task1_window_length.md`). |
 | Null subcarriers | Zero indices 0, 1, 255 (DC) and 123–133 (guard bands) in both rooms | They carry no channel information, only format differences. All 256 columns are kept, as the spec requires. |
 | Storage | float16 on disk | 4,680 × 150 × 256 windows = 344 MB instead of 690 MB. Precision ≈ 0.1% of the value, far below the signal noise. |
 

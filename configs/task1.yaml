@@ -13,6 +13,7 @@ room_a:
   primary_band: [128, 192]     # subcarrier index range [start, stop) in FFT order
   narrow_energy_frac: 0.9      # packet is "narrow" if >= this share of energy is in primary_band
   min_fullband_packets: 20     # captures with fewer valid packets are dropped (logged)
+  resample_rows: 150           # each capture's full-band packets (~3.9 s) resampled onto this many rows
   exclude_files:
     - stand/stand65(1).pcap    # byte-identical duplicate of stand65.pcap
 
@@ -23,8 +24,15 @@ common:
   null_subcarriers: [0, 1, 255, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133]
 
 windows:
+  # Windows are contiguous slices of each capture's sequence (Room A: 150 resampled rows,
+  # Room B: 500 rows), so a shorter window always means less observation time.
   length: 150                  # rows (time steps) per window
-  room_b_stride: 150           # non-overlapping windows inside each 500-row Room B file
+  stride: null                 # null = non-overlapping (stride = length)
+
+window_length_study:
+  lengths: [5, 10, 25, 50, 100, 150]   # rows; Room A sequences have 150 rows, so 150 is the maximum
+  bootstrap_reps: 1000                  # capture-level bootstrap for 95% intervals
+  bootstrap_seed: 0
 
 room_classifier:
   # Design choice, not a tuned hyperparameter: per-row normalization removes absolute

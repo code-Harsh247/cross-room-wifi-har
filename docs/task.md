@@ -18,7 +18,7 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 | M3 | Common format + format-leak audit | ✅ Done | |
 | M4 | Splits + windows | ✅ Done | |
 | M5 | Baseline room classifier | ✅ Done | |
-| M6 | Window-length study + still/moving breakdown | ⬜ Next | |
+| M6 | Window-length study + still/moving breakdown | ✅ Done | |
 | M7 | Predictions export + router API (for Task 3) | 🟨 Mostly done | |
 | M8 | Stretch models + ablations | ⬜ | |
 | M9 | Report section for Task 1 | ⬜ | |
@@ -77,14 +77,16 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [x] Outputs in `outputs/task1/L150/` (metrics.json, model_selection.csv, predictions_val.csv, confusion_matrix_val.png)
 - [x] Tests (`tests/test_room_classifier.py`)
 
-## M6: Window-length study + still/moving breakdown ⬜
-**Done when:** the "room accuracy vs window length" figure exists (required by the report).
+## M6: Window-length study + still/moving breakdown ✅
+**Results:** [reports/task1_window_length.md](../reports/task1_window_length.md). 5 rows → 0.988, 25 rows → 0.998, ≥ 100 rows → 1.000. Format-only 1.000 at every length. Transfer to unseen walking *drops* with length (0.95 → 0.86).
 
-- [ ] Build caches for lengths {10, 25, 50, 100, 150} (`build_windows.py --length L`)
-  - [ ] Decide how Room A windows of length L are made (resample the full capture to L rows, or take an L-row slice of the 150-row resampled capture). Write the choice down.
-- [ ] Same training/eval protocol at every length; repeat over ≥ 3 seeds
-- [ ] Plot several curves so the figure is not a flat 100% line: all activities, shared activities, format-only, train sit+stand → test walk → `outputs/figures/room_acc_vs_length.png`
-- [ ] Accuracy split by still activities (empty, sit, stand, lying) vs moving ones (walk, sitdown, standup, fall)
+- [x] Lengths {5, 10, 25, 50, 100, 150} rows, built in memory from cached capture sequences (`data_cache/sequences.joblib`)
+  - [x] Room A windows = contiguous L-row slices of the 150-row resampled capture (option B), so shorter = less time in both rooms
+- [x] Same protocol at every length (C re-tuned on dev holdout). Spread = 95% capture-level bootstrap interval (the model is deterministic, so seeds would add nothing)
+- [x] Figure with all / shared / format-only / sit+stand→walk curves + still vs moving panel → `reports/figures/task1_room_acc_vs_length.png`
+- [x] Still vs moving: no practical difference (moving slightly easier at 5 rows)
+- [x] Extra check: sit+stand→walk drop is caused by both window length and weak regularization (fixed-C rerun)
+- [x] Tests for slicing and bootstrap
 
 ## M7: Predictions export + router API 🟨
 **Done when:** Task 3 can call the room classifier and read saved predictions.
@@ -93,6 +95,7 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [x] Export `outputs/task1/L150/predictions_val.csv`: `capture_id, start, activity, true_room, pred_room, prob_B`
 - [x] Save the trained model to `outputs/task1/L150/room_classifier.joblib`
 - [ ] Decide with Task 3 whether the router should be trained on all activities or only on what Task 3 is allowed to see (source labels + K support captures)
+- [ ] Try for the router (from M6): stronger regularization (C ≈ 0.1) and averaging predictions over short sub-windows; both transferred better to unseen walking
 
 ## M8: Stretch models + ablations ⬜
 Only after M5–M7 work end to end.
@@ -134,9 +137,11 @@ Only after M5–M7 work end to end.
 | 2026-10-18 | Zero DC/guard subcarriers in both rooms | No channel info, only format differences |
 | 2026-10-18 | Drop captures with < 20 full-band packets | Too few frames to represent the capture |
 | 2026-10-18 | Private GitHub repo | Rules ban sharing code between teams |
+| 2026-10-18 | Room classifier feature variant fixed to per-row normalized spectrum; only C tuned | Removes absolute scale (a format cue) by design |
+| 2026-10-18 | Shorter windows = contiguous slices of each capture's sequence | Shorter must mean less observation time in both rooms |
 
 ## Open questions
-- [ ] Room B sampling rate is unknown (no timestamps). Does it matter for comparing window lengths across rooms?
+- [x] Room B sampling rate is unknown (no timestamps). Does it matter for comparing window lengths across rooms? → Lengths are reported in rows; seconds only for Room A (~26 ms/row). Stated as a caveat in the M6 report.
 - [ ] Should Room B validation stay a random draw (rule) while we also report a contiguous-block check?
 - [ ] Which Task 1 number goes in the headline: the main model's accuracy, or that number next to the format-only accuracy?
 

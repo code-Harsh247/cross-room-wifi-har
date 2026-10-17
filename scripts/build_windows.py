@@ -2,7 +2,11 @@
 
 Usage:
     python scripts/build_windows.py                 # length from config (150)
-    python scripts/build_windows.py --length 50     # e.g. for the window-length study
+    python scripts/build_windows.py --length 50     # shorter windows (contiguous slices)
+    python scripts/build_windows.py --rebuild       # re-decode the raw files first
+
+Decoded capture sequences are cached in data_cache/sequences.joblib, so only the
+first run (or --rebuild) reads the raw .pcap/.csv files.
 """
 from __future__ import annotations
 
@@ -23,13 +27,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=None)
     ap.add_argument("--length", type=int, default=None, help="rows per window")
-    ap.add_argument("--stride-b", type=int, default=None, help="Room B stride (default: = config)")
+    ap.add_argument("--stride", type=int, default=None, help="rows between window starts (default: = length)")
+    ap.add_argument("--rebuild", action="store_true", help="re-decode raw files instead of using cached sequences")
     args = ap.parse_args()
 
     cfg = load_config(args.config) if args.config else load_config()
     length = args.length or cfg["windows"]["length"]
     t0 = time.time()
-    build_windows(cfg, length, args.stride_b)
+    build_windows(cfg, length, args.stride, args.rebuild)
 
     caps = pd.read_csv(cache_paths(cfg, length)[2])
     print(f"done in {time.time() - t0:.0f}s\n")

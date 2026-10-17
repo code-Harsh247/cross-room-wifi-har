@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from xroom.eval import capture_level, full_report, room_metrics
+from xroom.eval import bootstrap_balanced_accuracy, capture_level, full_report, room_metrics
 from xroom.features import data_subcarriers, format_stats, in_chunks, spectrum_features
 from xroom.room_classifier import RoomClassifier
 
@@ -77,3 +77,15 @@ def test_room_metrics_and_capture_level():
     rep = full_report(meta, prob_b)
     assert rep["shared_activities_sit_stand_walk"]["n_windows"] == 2
     assert rep["per_room_activity_accuracy"]["B/lying"] == 0.5
+
+
+def test_bootstrap_interval_brackets_estimate_and_collapses_when_perfect():
+    meta = pd.DataFrame({"capture_id": [f"a{i}" for i in range(20)] + [f"b{i // 3}" for i in range(60)],
+                         "room": ["A"] * 20 + ["B"] * 60})
+    perfect = np.ones(80, bool)
+    assert bootstrap_balanced_accuracy(meta, perfect, reps=200) == (1.0, 1.0)
+    rng = np.random.default_rng(0)
+    noisy = rng.random(80) < 0.8
+    lo, hi = bootstrap_balanced_accuracy(meta, noisy, reps=500)
+    point = (noisy[:20].mean() + noisy[20:].mean()) / 2
+    assert lo <= point <= hi and hi - lo > 0.05

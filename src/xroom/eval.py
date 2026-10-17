@@ -32,6 +32,22 @@ def capture_level(meta: pd.DataFrame, prob_b: np.ndarray) -> dict:
     return room_metrics(cap["room"].to_numpy(), cap["prob_b"].to_numpy())
 
 
+def bootstrap_balanced_accuracy(meta: pd.DataFrame, correct: np.ndarray, reps: int = 1000,
+                                seed: int = 0, level: float = 0.95) -> tuple[float, float]:
+    """Confidence interval for window-level balanced accuracy, resampling *captures*
+    with replacement within each room (windows of one capture are not independent)."""
+    df = meta[["capture_id", "room"]].assign(correct=np.asarray(correct, dtype=float))
+    cap = df.groupby("capture_id").agg(room=("room", "first"), n=("correct", "size"), k=("correct", "sum"))
+    rng = np.random.default_rng(seed)
+    per_room = []
+    for _, g in cap.groupby("room"):
+        idx = rng.integers(0, len(g), size=(reps, len(g)))
+        per_room.append(g["k"].to_numpy()[idx].sum(1) / g["n"].to_numpy()[idx].sum(1))
+    stats = np.mean(per_room, axis=0)
+    alpha = (1 - level) / 2
+    return float(np.quantile(stats, alpha)), float(np.quantile(stats, 1 - alpha))
+
+
 def full_report(meta: pd.DataFrame, prob_b: np.ndarray) -> dict:
     """All windows, shared activities only, capture level, and per activity."""
     prob_b = np.asarray(prob_b)

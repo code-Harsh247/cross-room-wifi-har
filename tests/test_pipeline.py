@@ -13,7 +13,7 @@ from xroom.config import PROJECT_ROOT, load_config
 from xroom.io_pcap import load_nexmon_pcap, unpack_nexmon_float
 from xroom.resample import resample_in_time
 from xroom.splits import assign_splits, draw_room_b_validation, room_b_validation
-from xroom.windows import room_b_windows
+from xroom.windows import capture_windows, slice_windows
 
 CFG = load_config()
 HAVE_DATA = CFG["paths"]["room_a_dir"].exists() and CFG["paths"]["room_b_dir"].exists()
@@ -110,10 +110,25 @@ def test_room_b_windows_do_not_cross_capture(tmp_path: Path):
     rows = np.arange(500 * 256, dtype=np.float32).reshape(500, 256)
     f = tmp_path / "Empty_Amp_1.csv"
     pd.DataFrame(rows, columns=[f"Subcarrier_{i + 1}" for i in range(256)]).to_csv(f, index=False)
-    cw = room_b_windows(str(f), CFG, length=150, stride=150)
+    cw = capture_windows("B", str(f), CFG, length=150)
     assert cw.starts == [0, 150, 300]
     assert cw.windows.shape == (3, 150, 256)
     assert cw.windows[2, -1, 2] == rows[449, 2]
+
+
+@pytest.mark.parametrize("length,expected", [(150, [0]), (100, [0]), (50, [0, 50, 100]), (25, list(range(0, 150, 25)))])
+def test_slices_are_contiguous_and_non_overlapping(length, expected):
+    seq = np.arange(150 * 4, dtype=np.float32).reshape(150, 4)
+    w, starts = slice_windows(seq, length)
+    assert starts == expected
+    for s, win in zip(starts, w):
+        np.testing.assert_array_equal(win, seq[s : s + length])
+
+
+def test_slice_windows_handles_missing_and_short_sequences():
+    assert slice_windows(None, 10)[1] == []
+    assert slice_windows(np.zeros((5, 4)), 10)[1] == []
+    assert slice_windows(np.zeros((30, 4)), 10, stride=5)[1] == [0, 5, 10, 15, 20]
 
 
 # ---------- splits ----------
