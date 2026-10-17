@@ -19,7 +19,7 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 | M4 | Splits + windows | ✅ Done | |
 | M5 | Baseline room classifier | ✅ Done | |
 | M6 | Window-length study + still/moving breakdown | ✅ Done | |
-| M7 | Predictions export + router API (for Task 3) | 🟨 Mostly done | |
+| M7 | Predictions export + router API (for Task 3) | 🟨 Done except one rules question | |
 | M8 | Stretch models + ablations | ⬜ | |
 | M9 | Report section for Task 1 | ⬜ | |
 
@@ -95,7 +95,11 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [x] Export `outputs/task1/L150/predictions_val.csv`: `capture_id, start, activity, true_room, pred_room, prob_B`
 - [x] Save the trained model to `outputs/task1/L150/room_classifier.joblib`
 - [ ] Decide with Task 3 whether the router should be trained on all activities or only on what Task 3 is allowed to see (source labels + K support captures)
-- [ ] Try for the router (from M6): stronger regularization (C ≈ 0.1) and averaging predictions over short sub-windows; both transferred better to unseen walking
+- [x] Try for the router (from M6): stronger regularization and slice averaging → [reports/task1_router_variants.md](../reports/task1_router_variants.md)
+  - Selected on dev: **25-row slices, C = 1**. Val transfer mean 0.926 → 0.948, standard stays 1.000
+  - 10–15-row slices: unseen walking 0.86 → 0.987 on val (+12.7 pts), but tied with 25 rows on dev, so not selected
+- [x] `RoomClassifier(slice_rows=...)`: slice averaging built in (tests added)
+- [x] Task 3 router saved: `outputs/task1/router/room_router.joblib` + `predictions_val.csv`
 
 ## M8: Stretch models + ablations ⬜
 Only after M5–M7 work end to end.
@@ -139,6 +143,7 @@ Only after M5–M7 work end to end.
 | 2026-10-18 | Private GitHub repo | Rules ban sharing code between teams |
 | 2026-10-18 | Room classifier feature variant fixed to per-row normalized spectrum; only C tuned | Removes absolute scale (a format cue) by design |
 | 2026-10-18 | Shorter windows = contiguous slices of each capture's sequence | Shorter must mean less observation time in both rooms |
+| 2026-10-18 | Task 3 router = 25-row slice averaging, C = 1 (Task 1 headline stays the M5 model) | Selected on dev for transfer to unseen activities; val transfer 0.926 → 0.948 |
 
 ## Open questions
 - [x] Room B sampling rate is unknown (no timestamps). Does it matter for comparing window lengths across rooms? → Lengths are reported in rows; seconds only for Room A (~26 ms/row). Stated as a caveat in the M6 report.

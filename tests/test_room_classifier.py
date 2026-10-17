@@ -89,3 +89,25 @@ def test_bootstrap_interval_brackets_estimate_and_collapses_when_perfect():
     lo, hi = bootstrap_balanced_accuracy(meta, noisy, reps=500)
     point = (noisy[:20].mean() + noisy[20:].mean()) / 2
     assert lo <= point <= hi and hi - lo > 0.05
+
+
+def test_slice_averaging_matches_manual_slicing():
+    rng = np.random.default_rng(3)
+    x = np.concatenate([(1 + np.sin(np.linspace(0, 6, 256))) * rng.uniform(0.5, 1.5, (20, 30, 256)),
+                        (1 + np.cos(np.linspace(0, 6, 256))) * rng.uniform(0.5, 1.5, (20, 30, 256))]).astype(np.float32)
+    y = np.array(["A"] * 20 + ["B"] * 20)
+    clf = RoomClassifier(SC, variant="row", C=1.0, slice_rows=10).fit(x, y)
+    assert clf.features(x).shape == (40, 3, len(SC))
+    # manual: score each 10-row slice with the same model, then average per window
+    slices = x.reshape(40 * 3, 10, 256)
+    p_slices = clf.model.predict_proba(spectrum_features(slices, SC, "row"))[:, 1].reshape(40, 3)
+    np.testing.assert_allclose(clf.predict_proba(x), p_slices.mean(1), rtol=1e-6)
+    assert (clf.predict(x) == y).all()
+
+
+def test_models_saved_without_slice_attribute_still_work():
+    x = _windows(n=8)
+    clf = RoomClassifier(SC).fit(x, np.array(["A", "B"] * 4))
+    expected = clf.predict_proba(x)
+    del clf.slice_rows  # emulate a model pickled before slice averaging existed
+    np.testing.assert_allclose(clf.predict_proba(x), expected)
