@@ -20,8 +20,8 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 | M5 | Baseline room classifier | ✅ Done | |
 | M6 | Window-length study + still/moving breakdown | ✅ Done | |
 | M7 | Predictions export + router API (for Task 3) | ✅ Done | |
-| M8 | Stretch models + ablations | ⬜ | |
-| M9 | Report section for Task 1 | ⬜ | |
+| M8 | Stretch models + ablations | ✅ Done | |
+| M9 | Report section for Task 1 | ⬜ Next | |
 
 ---
 
@@ -103,14 +103,14 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [x] Routers saved: `outputs/task1/router/room_router.joblib` (strict, **Task 3 default**) and `room_router_activity_tuned.joblib` (ablation), with validation predictions
 - [x] `src/xroom/router.py`: `load_router(cfg, "strict" | "activity_tuned")` and `route(windows, meta, mode="oracle" | "predicted", router=...)` for Task 3's oracle vs predicted comparison (tests in `tests/test_router.py`)
 
-## M8: Stretch models + ablations ⬜
-Only after M5–M7 work end to end.
+## M8: Stretch models + ablations ✅
+**Report:** [reports/task1_ablations.md](../reports/task1_ablations.md) · `python scripts/task1_ablations.py`
 
-- [ ] Richer statistics (std, percentiles per subcarrier) + gradient boosting / MLP
-- [ ] Small 1-D CNN on the full 150 × 256 window (watch out: it can exploit time-smoothness differences)
-- [ ] Ablation table: feature set × normalization × model → accuracy and format-only accuracy
-- [ ] Optional: frequency smoothing applied to both rooms; round Room A to integers; check whether the format gaps shrink
-- [ ] Optional: "contiguous block" Room B split as a robustness check (consecutive chunks problem)
+- [x] Richer statistics (mean+std, percentiles per subcarrier) + gradient boosting (MLP skipped: boosting and the CNN already cover non-linear models)
+- [x] Small 1-D CNN on the full window (GPU, 10 epochs)
+- [x] Ablation table: features × model → standard, unseen-activity transfer, and a **shortcut probe** (score on smoothed validation windows). Std/percentile features collapse under the probe (recall B 0.005–0.17); percentiles "win" transfer (1.000) only by reading Room B's row noise. The mean-spectrum baseline is the most robust (0.969) → **M5 choice stays**
+- [x] Harmonization: smoothing both rooms does not close the format gap (format-only control still 1.000); room accuracy unaffected. Rounding Room A to integers not done (the integer cue is an artifact the baseline's features ignore)
+- [x] Contiguous Room B split: standard 0.999 vs 1.000, so consecutive chunks do not inflate Task 1
 
 ## M9: Report section for Task 1 ⬜
 - [ ] Preprocessing pipeline diagram
@@ -149,7 +149,7 @@ Only after M5–M7 work end to end.
 
 ## Open questions
 - [x] Room B sampling rate is unknown (no timestamps). Does it matter for comparing window lengths across rooms? → Lengths are reported in rows; seconds only for Room A (~26 ms/row). Stated as a caveat in the M6 report.
-- [ ] Should Room B validation stay a random draw (rule) while we also report a contiguous-block check?
+- [x] Should Room B validation stay a random draw (rule) while we also report a contiguous-block check? → Yes: the official split stays; the contiguous check (M8) gives the same Task 1 result
 - [ ] Which Task 1 number goes in the headline: the main model's accuracy, or that number next to the format-only accuracy?
 
 ## How to run
