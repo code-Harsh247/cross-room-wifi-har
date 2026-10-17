@@ -17,9 +17,9 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 | M2 | Room A decoding | ✅ Done | |
 | M3 | Common format + format-leak audit | ✅ Done | |
 | M4 | Splits + windows | ✅ Done | |
-| M5 | Baseline room classifier | ⬜ Next | |
-| M6 | Window-length study + still/moving breakdown | ⬜ | |
-| M7 | Predictions export + router API (for Task 3) | ⬜ | |
+| M5 | Baseline room classifier | ✅ Done | |
+| M6 | Window-length study + still/moving breakdown | ⬜ Next | |
+| M7 | Predictions export + router API (for Task 3) | 🟨 Mostly done | |
 | M8 | Stretch models + ablations | ⬜ | |
 | M9 | Report section for Task 1 | ⬜ | |
 
@@ -59,22 +59,23 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 
 ---
 
-## M5: Baseline room classifier ⬜ (next)
-**Done when:** validation accuracy, per-room accuracy, balanced accuracy, capture-level accuracy and a confusion matrix are produced by one command.
+## M5: Baseline room classifier ✅
+**Results:** [reports/task1_baseline_results.md](../reports/task1_baseline_results.md). Validation balanced accuracy **1.000** (all activities, shared activities, capture level), but the **format-only control is also 1.000**.
 
-- [ ] `src/xroom/features.py`: mean spectrum per subcarrier over time (+ optional std), null subcarriers removed
-- [ ] `src/xroom/normalize.py`: options, all fitted on **dev only**
-  - [ ] none / log amplitude
-  - [ ] global standardization (scaler fitted on dev windows of both rooms)
-  - [ ] per-window normalization (divide by the window's own mean → removes scale)
-- [ ] Baseline model: logistic regression (scikit-learn)
-- [ ] Model selection on `dev_fold = holdout` only (never on validation)
-- [ ] Final fit on all dev → score once on validation
-- [ ] `src/xroom/eval.py`: accuracy, balanced accuracy, per-room recall, confusion matrix, capture-level majority vote
-- [ ] `scripts/task1_train_eval.py --config configs/task1.yaml` (single entry point)
-- [ ] **Leak check:** train the same classifier on the audit statistics only → "format-only" accuracy, reported next to the main result
-- [ ] **Sanity check:** shuffled labels → accuracy should drop to ~50%
-- [ ] Save metrics to `outputs/task1_metrics.json`
+- [x] `src/xroom/features.py`: time-averaged spectrum, variants `none` / `row` (per-row normalized, main) / `log`; format statistics
+- [x] Normalization: per-row gain removal inside the features + StandardScaler fitted on **dev only** (in the model pipeline)
+- [x] Logistic regression, class-balanced (`src/xroom/room_classifier.py`)
+- [x] Feature variant fixed by design (`row`); `C` selected on `dev_fold = holdout` by log-loss → C = 1000
+- [x] Final fit on all dev → scored once on validation
+- [x] `src/xroom/eval.py`: accuracy, balanced accuracy, per-room recall, log-loss, confusion matrix, capture level, per room/activity, shared activities
+- [x] `scripts/task1_train_eval.py` (single entry point)
+- [x] **Format-only control** → 1.000 (rooms separable by format alone)
+- [x] **Shuffled labels** → 0.44 ± 0.10 (chance, no pipeline leak)
+- [x] **Leave-activity-out**: sit+stand→walk 0.86 · shared→room-only 0.93 · room-only→shared 0.99
+- [x] Ablation over feature variants (none 1.000 / row 1.000 / log 0.993)
+- [x] Robustness checks: train = val = 1.000 · learning curve (1 capture/room 0.58 → 50 captures 0.97) · nearest centroid 0.88 · no edge-subcarrier reliance (1.000 without them) · leave-one-day-out Room A recall 0.991
+- [x] Outputs in `outputs/task1/L150/` (metrics.json, model_selection.csv, predictions_val.csv, confusion_matrix_val.png)
+- [x] Tests (`tests/test_room_classifier.py`)
 
 ## M6: Window-length study + still/moving breakdown ⬜
 **Done when:** the "room accuracy vs window length" figure exists (required by the report).
@@ -82,15 +83,16 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [ ] Build caches for lengths {10, 25, 50, 100, 150} (`build_windows.py --length L`)
   - [ ] Decide how Room A windows of length L are made (resample the full capture to L rows, or take an L-row slice of the 150-row resampled capture). Write the choice down.
 - [ ] Same training/eval protocol at every length; repeat over ≥ 3 seeds
-- [ ] Plot accuracy (± spread) vs window length → `outputs/figures/room_acc_vs_length.png`
+- [ ] Plot several curves so the figure is not a flat 100% line: all activities, shared activities, format-only, train sit+stand → test walk → `outputs/figures/room_acc_vs_length.png`
 - [ ] Accuracy split by still activities (empty, sit, stand, lying) vs moving ones (walk, sitdown, standup, fall)
 
-## M7: Predictions export + router API ⬜
+## M7: Predictions export + router API 🟨
 **Done when:** Task 3 can call the room classifier and read saved predictions.
 
-- [ ] `RoomClassifier` class with `fit`, `predict(windows) -> {A,B}`, `predict_proba`, `save`, `load`
-- [ ] Export `outputs/task1_predictions.csv`: `capture_id, start, true_room, pred_room, prob_B`
-- [ ] Save the trained model to `outputs/models/room_classifier.joblib`
+- [x] `RoomClassifier` class with `fit`, `predict(windows) -> {A,B}`, `predict_proba`, `save`, `load` (computes its own features from raw windows)
+- [x] Export `outputs/task1/L150/predictions_val.csv`: `capture_id, start, activity, true_room, pred_room, prob_B`
+- [x] Save the trained model to `outputs/task1/L150/room_classifier.joblib`
+- [ ] Decide with Task 3 whether the router should be trained on all activities or only on what Task 3 is allowed to see (source labels + K support captures)
 
 ## M8: Stretch models + ablations ⬜
 Only after M5–M7 work end to end.

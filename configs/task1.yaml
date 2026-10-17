@@ -26,6 +26,12 @@ windows:
   length: 150                  # rows (time steps) per window
   room_b_stride: 150           # non-overlapping windows inside each 500-row Room B file
 
+room_classifier:
+  # Design choice, not a tuned hyperparameter: per-row normalization removes absolute
+  # scale (a format difference). "none" and "log" are run as ablations only.
+  feature_variant: row
+  c_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]   # tuned on dev holdout by log-loss
+
 splits:
   room_b_val_per_class: 25
   room_b_val_seed: 42          # fixed by the challenge rules

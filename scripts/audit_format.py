@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from functools import partial
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -21,34 +22,7 @@ from sklearn.metrics import roc_auc_score  # noqa: E402
 
 from xroom.config import PROJECT_ROOT, load_config  # noqa: E402
 from xroom.dataset import load_windows  # noqa: E402
-
-
-def _lag1_corr(a: np.ndarray, axis: int) -> np.ndarray:
-    """Mean lag-1 correlation along ``axis`` (1 = time, 2 = frequency) for each window."""
-    a = a - a.mean(axis=axis, keepdims=True)
-    x = np.take(a, range(a.shape[axis] - 1), axis=axis)
-    y = np.take(a, range(1, a.shape[axis]), axis=axis)
-    num = (x * y).sum(axis)
-    den = np.sqrt((x * x).sum(axis) * (y * y).sum(axis)) + 1e-9
-    return (num / den).mean(axis=1)
-
-
-def window_stats(x: np.ndarray, data_sc: np.ndarray) -> pd.DataFrame:
-    """x: (n, T, 256) float32 amplitude windows."""
-    d = x[:, :, data_sc]
-    mean = d.mean(axis=(1, 2))
-    return pd.DataFrame(
-        {
-            "mean amplitude": mean,
-            "99th percentile": np.percentile(d, 99, axis=(1, 2)),
-            "zero fraction": (d == 0).mean(axis=(1, 2)),
-            "integer fraction": (d == np.round(d)).mean(axis=(1, 2)),
-            "frequency smoothness (lag-1 corr)": _lag1_corr(d, axis=2),
-            "time smoothness (lag-1 corr)": _lag1_corr(d, axis=1),
-            "coefficient of variation over time": (d.std(axis=1) / (d.mean(axis=1) + 1e-9)).mean(axis=1),
-            "peak / mean (per window)": d.max(axis=(1, 2)) / (mean + 1e-9),
-        }
-    )
+from xroom.features import data_subcarriers, format_stats, in_chunks  # noqa: E402
 
 
 def main() -> None:
@@ -58,14 +32,9 @@ def main() -> None:
     cfg = load_config()
     x, meta = load_windows(cfg, args.length)
     dev = meta[meta["split"] == "dev"]
-    null = set(cfg["common"]["null_subcarriers"])
-    data_sc = np.array([i for i in range(x.shape[2]) if i not in null])
+    data_sc = data_subcarriers(cfg["common"]["null_subcarriers"], x.shape[2])
 
-    stats = pd.concat(
-        [window_stats(np.asarray(x[i : i + 500], dtype=np.float32), data_sc)
-         for i in range(0, len(x), 500)],
-        ignore_index=True,
-    ).iloc[dev.index]
+    stats = in_chunks(partial(format_stats, data_sc=data_sc), x).iloc[dev.index]
     is_b = (dev["room"] == "B").to_numpy()
 
     rows = []

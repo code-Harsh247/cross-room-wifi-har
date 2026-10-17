@@ -34,6 +34,8 @@ def room_a_windows(path: str, cfg: dict, length: int) -> CaptureWindows:
         "n_fullband": int(keep.sum()),
         "n_dropped_malformed": cap.n_dropped,
         "duration_s": float(cap.timestamps[-1] - cap.timestamps[0]) if len(amp) > 1 else 0.0,
+        # recording time, for session (day) analyses only; never used as a feature
+        "t_start_unix": float(cap.timestamps[0]) if len(amp) else float("nan"),
     }
     if keep.sum() < ra["min_fullband_packets"]:
         info["excluded_reason"] = f"only {int(keep.sum())} full-band packets"
