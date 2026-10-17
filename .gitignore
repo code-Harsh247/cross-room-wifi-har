@@ -1,0 +1,15 @@
+# raw data and caches (too large for git)
+csidata/
+csvdata/
+data_cache/
+outputs/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# os
+.DS_Store
+Thumbs.db

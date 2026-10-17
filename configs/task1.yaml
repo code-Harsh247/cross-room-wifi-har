@@ -1,0 +1,33 @@
+# Task 1 preprocessing configuration.
+# Every preprocessing choice lives here so the report can cite it and runs are reproducible.
+
+paths:
+  room_a_dir: csidata          # Experiment 2 (.pcap), with validation/ subfolder
+  room_b_dir: csvdata          # Experiment 3 (.csv), flat folder
+  cache_dir: data_cache        # decoded / windowed arrays (git-ignored)
+  splits_dir: splits           # committed split manifests
+
+room_a:
+  # Packets whose energy is concentrated in the primary 20 MHz sub-band are
+  # narrow-band frames (ACKs / 20 MHz data), not 80 MHz CSI. Drop them.
+  primary_band: [128, 192]     # subcarrier index range [start, stop) in FFT order
+  narrow_energy_frac: 0.9      # packet is "narrow" if >= this share of energy is in primary_band
+  min_fullband_packets: 20     # captures with fewer valid packets are dropped (logged)
+  exclude_files:
+    - stand/stand65(1).pcap    # byte-identical duplicate of stand65.pcap
+
+common:
+  n_subcarriers: 256
+  # 80 MHz VHT null subcarriers in FFT order: DC (0, +1, -1) and guard bands (+123..+127, -128..-123).
+  # Zeroed in BOTH rooms so they cannot carry format differences.
+  null_subcarriers: [0, 1, 255, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133]
+
+windows:
+  length: 150                  # rows (time steps) per window
+  room_b_stride: 150           # non-overlapping windows inside each 500-row Room B file
+
+splits:
+  room_b_val_per_class: 25
+  room_b_val_seed: 42          # fixed by the challenge rules
+  dev_holdout_frac: 0.2        # dev-train / dev-val split (by capture) for model selection
+  dev_holdout_seed: 0
