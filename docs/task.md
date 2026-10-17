@@ -21,7 +21,7 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 | M6 | Window-length study + still/moving breakdown | ✅ Done | |
 | M7 | Predictions export + router API (for Task 3) | ✅ Done | |
 | M8 | Stretch models + ablations | ✅ Done | |
-| M9 | Report section for Task 1 | ⬜ Next | |
+| M9 | Report section for Task 1 | ✅ Done | |
 
 ---
 
@@ -112,16 +112,20 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 - [x] Harmonization: smoothing both rooms does not close the format gap (format-only control still 1.000); room accuracy unaffected. Rounding Room A to integers not done (the integer cue is an artifact the baseline's features ignore)
 - [x] Contiguous Room B split: standard 0.999 vs 1.000, so consecutive chunks do not inflate Task 1
 
-## M9: Report section for Task 1 ⬜
-- [ ] Preprocessing pipeline diagram
-- [ ] Why each preprocessing choice (copy from `reports/preprocessing_pipeline.md` §2)
-- [ ] How validation and dev splits were built
-- [ ] Task 1 room accuracy (+ balanced, per-room, capture-level)
-- [ ] Figure: room accuracy vs window length
-- [ ] Format-leak audit table + format-only accuracy (honest framing of the result)
-- [ ] Ablation: what helps and what does not
-- [ ] Limitations: format/session confound, Room B consecutive chunks, 7 dropped sit captures
-- [ ] Hand-off note for Task 3: oracle vs predicted room (figure produced in Task 3)
+## M9: Report section for Task 1 ✅
+**Section:** [reports/task1_report_section.md](../reports/task1_report_section.md)
+
+- [x] Preprocessing pipeline diagram (Mermaid; renders on GitHub)
+- [x] Why each preprocessing choice
+- [x] How validation and dev splits were built
+- [x] Task 1 room accuracy (+ balanced, per-room, capture-level) and confusion matrix
+- [x] Figure: room accuracy vs window length
+- [x] Format-leak audit table + format-only accuracy (100% presented as an upper bound)
+- [x] Controls and robustness (shuffled labels, learning curve, nearest centroid, edge subcarriers, leave-one-day-out, leave-activity-out)
+- [x] Ablation: what helps and what does not (normalization; models × features with the shortcut probe)
+- [x] Limitations: format/session confound, Room B consecutive chunks, unknown Room B rate, 7 dropped sit captures
+- [x] Hand-off note for Task 3: strict router + oracle vs predicted routing API (the figure itself is produced in Task 3)
+- [ ] Project-level, still open: AI-use and per-member contribution disclosure (needs team input)
 
 ---
 
@@ -150,7 +154,7 @@ Legend: `[x]` done · `[ ]` to do · `[~]` partly done · **Owner** = who is doi
 ## Open questions
 - [x] Room B sampling rate is unknown (no timestamps). Does it matter for comparing window lengths across rooms? → Lengths are reported in rows; seconds only for Room A (~26 ms/row). Stated as a caveat in the M6 report.
 - [x] Should Room B validation stay a random draw (rule) while we also report a contiguous-block check? → Yes: the official split stays; the contiguous check (M8) gives the same Task 1 result
-- [ ] Which Task 1 number goes in the headline: the main model's accuracy, or that number next to the format-only accuracy?
+- [x] Which Task 1 number goes in the headline? → 100% balanced accuracy, always stated next to the format-only control (also 100%) and framed as an upper bound (report section §1)
 
 ## How to run
 ```bash
