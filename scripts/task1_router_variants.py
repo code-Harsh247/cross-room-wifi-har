@@ -20,6 +20,15 @@ of them is unseen, and the holdout fold alone was too small (its walking test sc
 variants whose standard score is >= 0.995. Validation is reported for every variant.
 The test unit is always a 150-row window (what Task 3 will route).
 
+That "activity-tuned" selection uses activity labels of both rooms' dev captures, which
+Task 3's rules forbid for the target room beyond K support captures. So a second,
+"strict" selection uses room labels only: a random 20% of dev captures per room (no
+activity information) is held out, every variant is trained on the rest with all
+activities pooled, and the variant with the lowest holdout log-loss wins.
+Two routers are saved:
+  room_router.joblib                  strict selection -> Task 3 default (rule-safe)
+  room_router_activity_tuned.joblib   transfer-tuned selection -> Task 1 analysis only
+
 Usage:  python scripts/task1_router_variants.py
 """
 from __future__ import annotations
@@ -58,6 +67,19 @@ SCENARIOS = {
 }
 TRANSFER = [s for s in SCENARIOS if s != "standard"]
 MIN_STANDARD = 0.995
+STRICT_HOLDOUT_FRAC = 0.2
+STRICT_SEED = 0
+
+
+def strict_holdout(meta: pd.DataFrame) -> np.ndarray:
+    """Random 20% of dev captures per room, drawn without any activity information."""
+    rng = np.random.default_rng(STRICT_SEED)
+    caps = meta[meta["split"] == "dev"].groupby("capture_id")["room"].first().sort_index()
+    held = []
+    for _, ids in caps.groupby(caps):
+        ids = ids.index.to_numpy()
+        held += list(rng.choice(ids, size=int(round(len(ids) * STRICT_HOLDOUT_FRAC)), replace=False))
+    return meta["capture_id"].isin(held).to_numpy()
 
 
 def slices_for(table, seqs, s: int, data_sc) -> tuple[np.ndarray, pd.DataFrame]:
@@ -82,7 +104,7 @@ def window_predictions(meta: pd.DataFrame, test: np.ndarray, prob_b: np.ndarray)
 def window_scores(win: pd.DataFrame) -> dict:
     m = room_metrics(win["room"].to_numpy(), win["p"].to_numpy())
     return {"balanced_accuracy": m.get("balanced_accuracy", m["accuracy"]), "recall_A": m.get("recall_A"),
-            "recall_B": m.get("recall_B"), "n_windows": int(len(win))}
+            "recall_B": m.get("recall_B"), "log_loss": m.get("log_loss"), "n_windows": int(len(win))}
 
 
 def paired_bootstrap(base: pd.DataFrame, other: pd.DataFrame, reps: int = 2000, seed: int = 0) -> tuple[float, float, float]:
@@ -131,23 +153,36 @@ def main() -> None:
                     if phase == "val":
                         val_windows[(s, C, scen)] = win
                     rows.append({"slice_rows": s, "C": C, "phase": phase, "scenario": scen, **window_scores(win)})
+        # strict (room labels only): pooled activities, random capture holdout
+        held = strict_holdout(meta)
+        for C in C_GRID:
+            model = make_linear_model(C).fit(f[dev & ~held], y[dev & ~held])
+            p = model.predict_proba(f[held])[:, list(model.classes_).index("B")]
+            rows.append({"slice_rows": s, "C": C, "phase": "strict", "scenario": "standard",
+                         **window_scores(window_predictions(meta, held, p))})
         print(f"slice {s:>3} rows done in {time.time() - t0:.0f}s", flush=True)
 
     df = pd.DataFrame(rows)
     df.to_csv(out_dir / "results.csv", index=False)
 
     # selection on development data only
-    wide = df.pivot_table(index=["phase", "slice_rows", "C"], columns="scenario", values="balanced_accuracy")
+    wide = df[df["phase"] != "strict"].pivot_table(index=["phase", "slice_rows", "C"], columns="scenario",
+                                                   values="balanced_accuracy")
     wide["transfer_mean"] = wide[TRANSFER].mean(axis=1)
     ho = wide.loc["dev"]
     eligible = ho[ho["standard"] >= MIN_STANDARD]
     best = eligible.sort_values(["transfer_mean", "slice_rows", "C"], ascending=[False, False, True]).index[0]
+    strict = df[df["phase"] == "strict"].set_index(["slice_rows", "C"]).sort_index()
+    strict_best = strict.sort_values(["log_loss", "balanced_accuracy"], ascending=[True, False]).index[0]
     baseline = (150, 1000.0)
     summary = {
         "selected_on_dev": {"slice_rows": int(best[0]), "C": float(best[1])},
+        "selected_strict_room_labels_only": {"slice_rows": int(strict_best[0]), "C": float(strict_best[1])},
         "baseline": {"slice_rows": baseline[0], "C": baseline[1]},
         "dev": {"selected": ho.loc[best].to_dict(), "baseline": ho.loc[baseline].to_dict()},
-        "val": {"selected": wide.loc["val"].loc[best].to_dict(), "baseline": wide.loc["val"].loc[baseline].to_dict()},
+        "val": {"selected": wide.loc["val"].loc[best].to_dict(), "baseline": wide.loc["val"].loc[baseline].to_dict(),
+                "strict": wide.loc["val"].loc[strict_best].to_dict()},
+        "strict_holdout": strict[["balanced_accuracy", "log_loss", "n_windows"]].reset_index().to_dict("records"),
     }
     paired = pd.DataFrame([
         {"slice_rows": s, "C": C, "scenario": scen,
@@ -158,6 +193,9 @@ def main() -> None:
     paired.to_csv(out_dir / "paired_vs_baseline_val.csv", index=False)
     summary["val_paired_vs_baseline_selected"] = paired[
         (paired["slice_rows"] == best[0]) & (paired["C"] == best[1])].drop(columns=["slice_rows", "C"]).to_dict("records")
+    summary["val_paired_vs_baseline_strict"] = paired[
+        (paired["slice_rows"] == strict_best[0]) & (paired["C"] == strict_best[1])
+    ].drop(columns=["slice_rows", "C"]).to_dict("records")
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     pd.set_option("display.width", 200)
@@ -173,21 +211,26 @@ def main() -> None:
     show = paired[paired["C"].isin([0.1, 1.0])].copy()
     show["v"] = show.apply(lambda r: f"{r.diff_vs_baseline:+.3f} [{r.ci_low:+.3f},{r.ci_high:+.3f}]", axis=1)
     print(show.pivot_table(index=["slice_rows", "C"], columns="scenario", values="v", aggfunc="first")[TRANSFER].to_string())
+    print("\nstrict selection (room labels only, random 20% dev captures held out):")
+    print(strict[["balanced_accuracy", "log_loss"]].round(5).to_string())
+    print(f"selected strict: slice_rows={strict_best[0]}, C={strict_best[1]} | val: "
+          + "  ".join(f"{k} {v:.3f}" for k, v in summary["val"]["strict"].items()))
 
-    # final router: selected variant, trained on all dev 150-row windows (all activities)
+    # final routers, trained on all dev 150-row windows of both rooms (room labels only)
     x150, meta150 = load_windows(cfg, WINDOW)
     dev150, val150 = (meta150["split"] == "dev").to_numpy(), (meta150["split"] == "val").to_numpy()
-    router = RoomClassifier(data_sc, variant="row", C=float(best[1]), slice_rows=int(best[0]))
-    router.fit(x150[dev150], meta150["room"].to_numpy()[dev150])
-    p = router.predict_proba(x150[val150])
     vm = meta150[val150]
     router_dir = PROJECT_ROOT / "outputs" / "task1" / "router"
-    router.save(router_dir / "room_router.joblib")
-    pd.DataFrame({"capture_id": vm["capture_id"], "start": vm["start"], "activity": vm["activity"],
-                  "true_room": vm["room"], "pred_room": np.where(p >= 0.5, "B", "A"), "prob_B": p}
-                 ).to_csv(router_dir / "predictions_val.csv", index=False)
-    std = room_metrics(vm["room"].to_numpy(), p)["balanced_accuracy"]
-    print(f"\nsaved router (slice_rows={best[0]}, C={best[1]}) -> {router_dir}; val standard balanced acc {std:.4f}")
+    for name, (s_rows, C) in [("room_router", strict_best), ("room_router_activity_tuned", best)]:
+        router = RoomClassifier(data_sc, variant="row", C=float(C), slice_rows=int(s_rows))
+        router.fit(x150[dev150], meta150["room"].to_numpy()[dev150])
+        p = router.predict_proba(x150[val150])
+        router.save(router_dir / f"{name}.joblib")
+        pd.DataFrame({"capture_id": vm["capture_id"], "start": vm["start"], "activity": vm["activity"],
+                      "true_room": vm["room"], "pred_room": np.where(p >= 0.5, "B", "A"), "prob_B": p}
+                     ).to_csv(router_dir / f"{name}_predictions_val.csv", index=False)
+        std = room_metrics(vm["room"].to_numpy(), p)["balanced_accuracy"]
+        print(f"saved {name} (slice_rows={s_rows}, C={C}); val standard balanced acc {std:.4f}")
 
     # figure: validation, one panel per scenario
     fig, axes = plt.subplots(1, len(SCENARIOS), figsize=(16, 3.6), sharey=True)

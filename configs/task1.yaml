@@ -6,6 +6,7 @@ paths:
   room_b_dir: csvdata          # Experiment 3 (.csv), flat folder
   cache_dir: data_cache        # decoded / windowed arrays (git-ignored)
   splits_dir: splits           # committed split manifests
+  router_dir: outputs/task1/router   # trained room routers for Task 3 (scripts/task1_router_variants.py)
 
 room_a:
   # Packets whose energy is concentrated in the primary 20 MHz sub-band are
