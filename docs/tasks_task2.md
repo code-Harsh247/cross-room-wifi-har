@@ -29,7 +29,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T3 | Encoder + heads | ✅ |
 | T4 | SSL objectives (NT-Xent, MAE) | ✅ |
 | T5 | Training loop + checkpoints | ✅ |
-| T6 | Probe pipeline + baselines | ⬜ |
+| T6 | Probe pipeline + baselines | ✅ |
 | T7 | Main SSL result (≥ 3 seeds) | ⬜ |
 | T8 | Figures (UMAP, curves, bars) | ⬜ |
 | T9 | Controls + ablations | ⬜ |
@@ -145,11 +145,11 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T6: Probe pipeline + baselines (PRD FR-5, FR-6)
-- [ ] `src/xroom/probe.py`: StandardScaler + LogisticRegression(class_weight="balanced"). C tuned on `dev_fold` train → holdout by macro-F1, refit on all dev, score val. Macro-F1, per-class F1, confusion matrix, capture-level macro-F1, capture bootstrap CI.
-- [ ] Probe sets: per-room A (6 classes), per-room B (5 classes), joint (8 classes), cross-room preview (A → B and B → A on sit/stand/walk).
-- [ ] Baselines: hand-crafted (per-row normalized mean + std, 484 features), random-init encoder, PCA-128 (dev-fitted).
-- [ ] `scripts/task2_probe.py --encoder RUN` and `--baselines-only` → `outputs/task2/probe/<name>/metrics.json`
-- [ ] `tests/test_probe.py`
+- [x] `src/xroom/probe.py`: StandardScaler + LogisticRegression(class_weight="balanced"). C tuned on `dev_fold` train → holdout by macro-F1, refit on all dev, score val. Macro-F1, per-class F1, confusion matrix, capture-level macro-F1, capture bootstrap CI.
+- [x] Probe sets: per-room A (6 classes), per-room B (5 classes), joint (8 classes), cross-room preview (A → B and B → A on sit/stand/walk).
+- [x] Baselines: hand-crafted (per-row normalized mean + std, 484 features), random-init encoder, PCA-128 (dev-fitted).
+- [x] `scripts/task2_probe.py --encoder RUN` and `--baselines-only` → `outputs/task2/probe/<name>/metrics.json`
+- [x] `tests/test_probe.py`
 
 🔒 **Gate T6**
 | Check | How | Pass if |
@@ -271,6 +271,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | `configs/task2.yaml` layers on `task1.yaml` via `base_config` and may not redefine its sections | Task 1 preprocessing defaults stay untouched |
 | 2026-10-19 | Augmentations are batched torch functions applied on the GPU after normalization (z-space; masking writes 0 = dev mean) | Fast, and one generator makes every view reproducible |
 | 2026-10-19 | T5 overfit check judged on the crop-only run (44%); the default-augmentation run stops at 57% | The NT-Xent floor under strong augmentation is not a pipeline fault; the crop-only run shows the loop can overfit |
+| 2026-10-19 | Probe fits run with one BLAS thread (`threadpool_limits`) | Multi-threaded BLAS made each small logistic regression ~60x slower (baselines 17 min → ~1.5 min) |
+| 2026-10-19 | PCA baseline averages every 2 rows before flattening (75 x 242 = 18,150 dims) | The full 36,300-dim matrix of 4,680 windows does not fit comfortably in 7 GB RAM |
+| 2026-10-19 | Shuffled-label control permutes labels between captures (not windows) | Keeps the capture-level structure; tested over 10 shuffle seeds on toy data, since one shuffle maps whole clusters and is high-variance |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -283,7 +286,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T3 | T3 commit | 7 tests: output (B, 128) for T = 32/96/150; all params get finite non-zero grads; GPU = CPU within 1e-4; eval deterministic. Encoder 824,704 params (< 1.5 M); peak GPU memory 291 MB for 2 x 256 crops (fits 4 GB) |
 | T4 | T4 commit | loss(identical) < loss(random); analytic B = 2 case within 1e-5; symmetric; MAE = 0 on perfect masked rows and ignores unmasked rows; masked share 0.5 ± 0.02 |
 | T5 | `simclr_s0` (T5 commit) | Full run: train loss 3.488 → 1.961 (epoch 60); holdout SSL loss 2.915 → 2.112, flat from ~epoch 50 (best epoch 54, kept); emb std 0.46, effective rank 55 → 69 (no collapse); runtime 218 s on the RTX 3050. Reload max abs diff 0.0. Overfit check: default augmentations reach 57% of the epoch-1 loss (3.488 → 1.976, `debug`), above the 50% target, because strong augmentations and repeated captures in a batch (256 captures, batch 256) put a floor under NT-Xent; with crop-only augmentation and batch 64 the same 256 captures reach 44% (1.821 → 0.807, `debug_croponly`), so the loop can fit. No `activity` reads in SSL code (test). |
-| T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
+| T6 | T6 commit (`outputs/task2/probe/*/metrics.json`) | Per-room macro-F1 A / B (chance 0.167 / 0.200): hand-crafted 0.940 / 0.987; random-init 0.935 ± 0.011 / 0.853 ± 0.017 (3 seeds); PCA-128 0.826 / 0.928. Cross-room A→B / B→A: hand-crafted 0.167 / 0.168, random-init 0.167 / 0.226, PCA 0.390 / 0.243. Format shift A / B: hand-crafted 0.732 / 0.164 (collapses on B), random-init 0.913 / 0.211. Shuffled labels (hand-crafted): A 0.182, B 0.181, joint 0.100 (chance 0.167 / 0.200 / 0.125); other sources' single shuffles fall 0.08–0.18 (no source is above chance). |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
 | T8 | | UMAP interpretation: |
 | T9 | | takeaways: |
