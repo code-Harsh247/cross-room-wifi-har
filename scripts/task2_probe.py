@@ -31,7 +31,8 @@ from task1_ablations import harmonize  # noqa: E402
 from xroom.config import apply_overrides, load_task2_config  # noqa: E402
 from xroom.dataset import load_sequences, load_windows  # noqa: E402
 from xroom.encoder import FrozenEncoder, build_encoder, default_device, embed, load_encoder  # noqa: E402
-from xroom.probe import flat_windows, handcrafted_features, linear_probe, pca_features, probe_suite  # noqa: E402
+from xroom.probe import (dev_holdout_scores, flat_windows, handcrafted_features, linear_probe,  # noqa: E402
+                         pca_features, probe_suite)
 from xroom.ssl_data import fit_dev_stats  # noqa: E402
 
 PROBE_SETS = ("room_A", "room_B", "joint", "cross_A_to_B", "cross_B_to_A")
@@ -59,6 +60,8 @@ def evaluate(name: str, feat_fn, f: np.ndarray, x, meta, cfg, out_root: Path, sh
     res = {"name": name, "dim": int(f.shape[1]),
            "probes": probe_suite(f, meta, pc["c_grid"], pc["bootstrap_reps"], pc["bootstrap_seed"],
                                  shuffle_labels=shuffle)}
+    if not shuffle:
+        res["dev_holdout"] = dev_holdout_scores(f, meta, pc["c_grid"])
     if with_controls and not shuffle and feat_fn is not None:
         res["controls"] = controls(feat_fn, f, x, meta, pc)
     out = out_root / (name + ("_shuffled" if shuffle else ""))
@@ -89,6 +92,8 @@ def summarize(results: list[dict], name: str, out_root: Path) -> dict:
                                  for m in ("macro_f1", "capture_macro_f1")}
     summ["probes"]["headline_mean_room_macro_f1"] = agg([r["probes"]["headline_mean_room_macro_f1"]
                                                          for r in results])
+    if all("dev_holdout" in r for r in results):
+        summ["dev_holdout"] = {k: agg([r["dev_holdout"][k] for r in results]) for k in ("room_A", "room_B", "mean")}
     if all("controls" in r for r in results):
         summ["controls"] = {
             "room_probe_accuracy": agg([r["controls"]["room_probe"]["accuracy"] for r in results]),
@@ -145,6 +150,8 @@ def main() -> None:
     args = ap.parse_args()
 
     cfg = apply_overrides(load_task2_config(), args.set)
+    torch.backends.cudnn.benchmark = False  # same convolution algorithms on every run
+    torch.backends.cudnn.deterministic = True
     x, meta = load_windows(cfg)
     out_root = Path(cfg["paths"]["encoder_dir"]) / "probe"
     if args.baselines_only:

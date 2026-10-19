@@ -59,10 +59,19 @@ def main() -> None:
             f"{p['cross_A_to_B']['macro_f1']:.3f} / {p['cross_B_to_A']['macro_f1']:.3f} | "
             f"{c['room_probe']['accuracy']:.3f} | {c['format_shift']['room_A']:.3f} / {c['format_shift']['room_B']:.3f} |")
 
-    out("\n## Per-class F1, SimCLR seed 0 (validation)\n")
+    out("\n## Dev-holdout per-room macro-F1 per run (probe fit on dev-train; development data only)\n")
+    for name in ("simclr_s0", "simclr_s1", "simclr_s2", "random_init_s0", "random_init_s1", "random_init_s2",
+                 "handcrafted", "pca"):
+        d = json.loads((probe / name / "metrics.json").read_text()).get("dev_holdout")
+        if d:
+            out(f"- {name}: A {d['room_A']:.3f}, B {d['room_B']:.3f}")
+
+    out("\n## Per-class F1 and Room A confusion, SimCLR seed 0 (validation)\n")
     p = json.loads((probe / "simclr_s0" / "metrics.json").read_text())["probes"]
     for k in ("room_A", "room_B"):
         out(f"- {k}: " + ", ".join(f"{a} {v:.2f}" for a, v in p[k]["per_class_f1"].items()))
+    conf = p["room_A"]["confusion"]
+    out(f"- room_A confusion, labels {conf['labels']} (rows true, cols predicted): {conf['matrix(rows=true, cols=pred)']}")
 
     out("\n## Controls: room probe and format shift (validation)\n")
     out("| Features | Room probe acc. | Activity A clean → shifted | Activity B clean → shifted |")
@@ -97,7 +106,8 @@ def main() -> None:
         best = min(h, key=lambda x: x["holdout_loss"])
         out(f"- {run}: train loss {h[0]['train_loss']:.3f} → {h[-1]['train_loss']:.3f}; holdout "
             f"{h[0]['holdout_loss']:.3f} → best {best['holdout_loss']:.3f} (epoch {best['epoch']}); "
-            f"eff. rank {h[-1]['eff_rank']:.1f}; emb std {h[-1]['emb_std']:.3f}; {info['runtime_s']:.0f} s")
+            f"eff. rank {h[-1]['eff_rank']:.1f}; emb std {h[-1]['emb_std']:.3f}; {info['runtime_s']:.0f} s; "
+            f"{info['n_train_captures']} train / {info['n_holdout_captures']} holdout captures")
 
     abl = root / "ablations" / "summary.csv"
     if abl.exists():

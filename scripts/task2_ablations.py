@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import torch  # noqa: E402
 
 from task1_ablations import contiguous_split  # noqa: E402
 from xroom.config import apply_overrides, load_task2_config  # noqa: E402
@@ -157,6 +158,8 @@ def main() -> None:
     args = ap.parse_args()
 
     base = load_task2_config()
+    torch.backends.cudnn.benchmark = False  # reproducible embeddings for the probes
+    torch.backends.cudnn.deterministic = True
     x, meta = load_windows(base)
     table, seqs = load_sequences(base)
     out = Path(base["paths"]["encoder_dir"]) / "ablations"

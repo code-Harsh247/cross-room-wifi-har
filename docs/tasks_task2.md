@@ -34,7 +34,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T8 | Figures (UMAP, curves, bars) | ✅ |
 | T9 | Controls + ablations | ✅ |
 | T10 | Task 3 hand-off API | ✅ |
-| T11 | Report section | ⬜ |
+| T11 | Report section | ✅ |
 
 ---
 
@@ -231,7 +231,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T11: Report section
-- [ ] `reports/task2_report_section.md`, same structure as `reports/task1_report_section.md`:
+- [x] `reports/task2_report_section.md`, same structure as `reports/task1_report_section.md`:
   - task + summary;
   - method (data, augmentations, encoder, objective);
   - evaluation protocol;
@@ -242,7 +242,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
   - limitations;
   - Task 3 hand-off;
   - reproduction commands.
-- [ ] Update the AI-use and contribution disclosure (project-level).
+- [x] Update the AI-use and contribution disclosure (project-level): `docs/ai_use_and_contributions.md` (Task 2 row filled; Harsh's rows and both members' own notes still to add).
 
 🔒 **Gate T11**
 | Check | Pass if |
@@ -254,12 +254,12 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## Rules checklist (check before reporting any result)
-- [ ] No validation captures in SSL training, normalization statistics, checkpoint selection or probe tuning
-- [ ] No activity labels in SSL training or default-encoder selection
-- [ ] Splits are by capture; windows of a capture are never split
-- [ ] Features come only from the CSI signal (no filenames, folders or capture length)
-- [ ] Python only; no authors' MATLAB code; no other team's code
-- [ ] Commits are small and frequent, with no AI attribution lines
+- [x] No validation captures in SSL training, normalization statistics, checkpoint selection or probe tuning
+- [x] No activity labels in SSL training or default-encoder selection
+- [x] Splits are by capture; windows of a capture are never split
+- [x] Features come only from the CSI signal (no filenames, folders or capture length)
+- [x] Python only; no authors' MATLAB code; no other team's code
+- [x] Commits are small and frequent, with no AI attribution lines
 
 ## Decisions log
 | Date | Decision | Why |
@@ -277,6 +277,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | T7 Room A debugging uses dev-holdout probe scores only (`dev_holdout_scores`), never validation; any variant picked that way is label-tuned and gets its own name, while the default encoder stays the fixed config | Validation is for scoring only; Task 3 needs a label-clean default (PRD FR-10) |
 | 2026-10-19 | Label-tuned variant chosen by the highest 3-seed dev-holdout mean (τ = 0.5); MAE reported as a tied alternative, not promoted | Picking between two dev-holdout ties by their validation score would be validation tuning |
 | 2026-10-19 | Contiguous check pre-trains new encoders (`contig_s*`) without the contiguous block or its guard files; the probe trains on rows that are dev under both splits | Otherwise the SSL encoder has seen the test block (unlabelled), and official validation captures would enter probe training |
+| 2026-10-20 | Probe and ablation scripts set cuDNN deterministic mode; all probes re-run before the report | The first baseline run (before the one-thread BLAS fix) did not reproduce exactly; re-runs are now byte-identical |
+| 2026-10-20 | Report numbers are generated (`task2_report_numbers.py`) and checked (`task2_check_report.py`); dev-holdout scores are now saved in every probe `metrics.json` | Every reported number must come from a committed script |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -289,8 +291,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T3 | T3 commit | 7 tests: output (B, 128) for T = 32/96/150; all params get finite non-zero grads; GPU = CPU within 1e-4; eval deterministic. Encoder 824,704 params (< 1.5 M); peak GPU memory 291 MB for 2 x 256 crops (fits 4 GB) |
 | T4 | T4 commit | loss(identical) < loss(random); analytic B = 2 case within 1e-5; symmetric; MAE = 0 on perfect masked rows and ignores unmasked rows; masked share 0.5 ± 0.02 |
 | T5 | `simclr_s0` (T5 commit) | Full run: train loss 3.488 → 1.961 (epoch 60); holdout SSL loss 2.915 → 2.112, flat from ~epoch 50 (best epoch 54, kept); emb std 0.46, effective rank 55 → 69 (no collapse); runtime 218 s on the RTX 3050. Reload max abs diff 0.0. Overfit check: default augmentations reach 57% of the epoch-1 loss (3.488 → 1.976, `debug`), above the 50% target, because strong augmentations and repeated captures in a batch (256 captures, batch 256) put a floor under NT-Xent; with crop-only augmentation and batch 64 the same 256 captures reach 44% (1.821 → 0.807, `debug_croponly`), so the loop can fit. No `activity` reads in SSL code (test). |
-| T6 | T6 commit (`outputs/task2/probe/*/metrics.json`) | Per-room macro-F1 A / B (chance 0.167 / 0.200): hand-crafted 0.940 / 0.987; random-init 0.935 ± 0.011 / 0.853 ± 0.017 (3 seeds); PCA-128 0.826 / 0.928. Cross-room A→B / B→A: hand-crafted 0.167 / 0.168, random-init 0.167 / 0.226, PCA 0.390 / 0.243. Format shift A / B: hand-crafted 0.732 / 0.164 (collapses on B), random-init 0.913 / 0.211. Shuffled labels (hand-crafted): A 0.182, B 0.181, joint 0.100 (chance 0.167 / 0.200 / 0.125); other sources' single shuffles fall 0.08–0.18 (no source is above chance). |
+| T6 | T6 commit; baselines re-run deterministically at T11 (`outputs/task2/probe/*/metrics.json`) | Per-room macro-F1 A / B (chance 0.167 / 0.200): hand-crafted 0.940 / 0.989; random-init 0.935 ± 0.011 / 0.856 ± 0.013 (3 seeds); PCA-128 0.822 / 0.928. Cross-room A→B / B→A: hand-crafted 0.167 / 0.168, random-init 0.167 / 0.226, PCA 0.390 / 0.243. Format shift A / B: hand-crafted 0.732 / 0.260 (collapses on B), random-init 0.913 / 0.208. Shuffled labels (hand-crafted): A 0.182, B 0.181, joint 0.100 (chance 0.167 / 0.200 / 0.125); other sources' single shuffles fall 0.08–0.18 (no source is above chance). (First T6 run, before the one-thread BLAS fix: random-init B 0.853, hand-crafted shift B 0.164; superseded.) |
 | T7 | `simclr_s0/1/2` (code at `205f87a`), `probe/simclr_default/summary.json` | Per-room macro-F1 (val, mean ± std over 3 seeds): **A 0.905 ± 0.027, B 0.992 ± 0.005**, headline 0.949 ± 0.016; joint 0.944 ± 0.011; capture-level A 0.905, B 0.997. Cross-room A→B 0.226 ± 0.033, B→A 0.228 ± 0.112 (chance 0.333). Room probe 0.999; format shift A 0.825 / B 0.937. **Gate:** Room B passes (SSL min 0.987 > random-init max 0.869). Room A fails (SSL 0.878–0.932 vs random-init 0.925–0.948); seed std ≤ 0.05 in both rooms. Dev-holdout confirms a tie on A (SSL 0.913–0.935, random-init 0.934–0.951; differences of 1–3 of 186 windows per class), so this is not validation noise. Debugging continues as the T9 ablation grid, compared on dev-holdout only. |
 | T10 | T10 commit | `embed(load_encoder(cfg), x[:10])` → (10, 128) float32, finite, identical on repeat; equals the `simclr_s0` embeddings used by the probe (max diff < 1e-5); eval mode, frozen. Default = `simclr_s0` (default config, seed 0 fixed in advance, epoch 54 by dev-holdout SSL loss); PROVENANCE.md states no activity labels. Done before T8/T9 because it does not depend on them. |
 | T8 | T8 commit (`reports/figures/task2_*.png`) | UMAP (default encoder; scaler + UMAP fitted on dev embeddings, val transformed, seed 0): the embedding is organised **by room first**; Room A and Room B validation windows never share a region. Inside Room B it is organised **by activity**: tight single-activity clusters, often several per activity (likely separate recording sessions, cf. the consecutive-chunk pitfall). Room A forms one cloud with only partial activity structure (walk/fall/sit drift to different edges), matching its weaker probe. Shared activities (sit/stand/walk) of the two rooms do not co-locate, which explains the near-chance cross-room preview. |
+| T11 | T11 commit | `scripts/task2_check_report.py`: 161 distinct numbers in `reports/task2_report_section.md`, 161 found in `outputs/task2/report_numbers.md` (built by `scripts/task2_report_numbers.py`). Figures and supporting links point to committed files. All probes re-run with deterministic settings before the numbers were taken (two baseline runs gave byte-identical metrics). |
 | T9 | T9 commit (`ablations/results.csv`, `summary.csv`, `results_partial.csv`; `probe/{tau_0.5,method_mae,aug_no_format}/summary.json`) | 13 variants x 2 seeds + 3rd seed for the top two; controls in every main `metrics.json`. Default row (s0, s1) val A 0.918 ± 0.019 / B 0.995 matches T7 within seed noise. Contiguous Room B: SSL with the block held out of SSL 0.987 / 0.973 (s0 / s1) vs 0.992 when seen unlabelled; hand-crafted 0.943. **Takeaways** (dev-holdout macro-F1 decides; val reported): (1) per-row normalization matters most: without it Room A drops 0.921 → 0.870 (val 0.918 → 0.871); (2) temperature matters: τ 0.1 / 0.2 / 0.5 give Room A 0.899 / 0.921 / 0.959; (3) MAE ties the best SimCLR on dev-holdout (0.977 vs 0.978 overall) and is the only variant clearly above random-init on Room A validation (0.957 ± 0.004, min 0.952 > 0.948) and the most format-shift robust (A 0.955 / B 0.961); (4) removing any single augmentation moves dev-holdout by ≤ 0.01; the format augmentation does not measurably add shift robustness (shift B 0.919 without vs 0.937 with, 2–3 seeds); (5) no variant makes cross-room transfer work (0.09–0.36 vs chance 0.33): SSL alone does not give room-invariant activity features, so Task 3 needs per-room normalization / adaptation. **T7 follow-up:** the rule fixed in advance (highest dev-holdout mean) picks τ = 0.5 as the label-tuned variant (`abl_tau_0.5_s*`); it gains on dev-holdout A (0.959) but not on val A (0.923 ± 0.004, still below random-init 0.948 max), i.e. Room A's supplied validation folder behaves differently from dev-holdout. MAE passes the T7 check in both rooms but is not promoted, since choosing it over the tied τ = 0.5 would need validation. The default encoder stays label-clean SimCLR τ = 0.2. |
