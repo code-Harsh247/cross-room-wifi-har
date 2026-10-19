@@ -27,7 +27,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T1 | Config + SSL data pipeline | ✅ |
 | T2 | Augmentations | ✅ |
 | T3 | Encoder + heads | ✅ |
-| T4 | SSL objectives (NT-Xent, MAE) | ⬜ |
+| T4 | SSL objectives (NT-Xent, MAE) | ✅ |
 | T5 | Training loop + checkpoints | ⬜ |
 | T6 | Probe pipeline + baselines | ⬜ |
 | T7 | Main SSL result (≥ 3 seeds) | ⬜ |
@@ -112,8 +112,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T4: SSL objectives (PRD FR-4)
-- [ ] `src/xroom/ssl.py`: NT-Xent loss (temperature τ); MAE-style masked reconstruction loss (MSE on masked rows only).
-- [ ] `tests/test_ssl.py`
+- [x] `src/xroom/ssl.py`: NT-Xent loss (temperature τ); MAE-style masked reconstruction loss (MSE on masked rows only).
+- [x] `tests/test_ssl.py`
 
 🔒 **Gate T4**
 | Check | How | Pass if |
@@ -280,6 +280,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T1 | T1 commit | 9 tests: no val id in 200 batches (toy + real cache); injected val id raises; batch (B, 96–150, 242) float32 finite; Room A share in [0.45, 0.55]; dev-only stats match manual within 1e-5; deterministic per seed |
 | T2 | T2 commit | 23 tests: shape/dtype/finite, exact identity at p = 0, masked fraction in range, deterministic per seed. Preview: views alike but not identical, none pure noise; Room B rows visibly noisier than Room A (the format confound the `format` augmentation targets) |
 | T3 | T3 commit | 7 tests: output (B, 128) for T = 32/96/150; all params get finite non-zero grads; GPU = CPU within 1e-4; eval deterministic. Encoder 824,704 params (< 1.5 M); peak GPU memory 291 MB for 2 x 256 crops (fits 4 GB) |
+| T4 | T4 commit | loss(identical) < loss(random); analytic B = 2 case within 1e-5; symmetric; MAE = 0 on perfect masked rows and ignores unmasked rows; masked share 0.5 ± 0.02 |
 | T5 | | train loss epoch 1 → last: ; holdout loss: ; runtime: |
 | T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
