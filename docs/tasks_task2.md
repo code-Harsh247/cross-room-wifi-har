@@ -30,7 +30,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T4 | SSL objectives (NT-Xent, MAE) | ✅ |
 | T5 | Training loop + checkpoints | ✅ |
 | T6 | Probe pipeline + baselines | ✅ |
-| T7 | Main SSL result (≥ 3 seeds) | ⬜ |
+| T7 | Main SSL result (≥ 3 seeds) | ⚠️ Room B passes, Room A ties random-init (see Results log) |
 | T8 | Figures (UMAP, curves, bars) | ⬜ |
 | T9 | Controls + ablations | ⬜ |
 | T10 | Task 3 hand-off API | ⬜ |
@@ -164,9 +164,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T7: Main SSL result (PRD FR-5, success criteria)
-- [ ] Pre-train SimCLR with the **default config** for seeds 0, 1, 2. Do not tune with activity labels.
-- [ ] Probe each seed. Aggregate mean ± std per probe set.
-- [ ] Save `outputs/task2/probe/simclr_default/summary.json`.
+- [x] Pre-train SimCLR with the **default config** for seeds 0, 1, 2. Do not tune with activity labels.
+- [x] Probe each seed. Aggregate mean ± std per probe set.
+- [x] Save `outputs/task2/probe/simclr_default/summary.json`.
 
 🔒 **Gate T7**
 | Check | Pass if |
@@ -274,6 +274,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | Probe fits run with one BLAS thread (`threadpool_limits`) | Multi-threaded BLAS made each small logistic regression ~60x slower (baselines 17 min → ~1.5 min) |
 | 2026-10-19 | PCA baseline averages every 2 rows before flattening (75 x 242 = 18,150 dims) | The full 36,300-dim matrix of 4,680 windows does not fit comfortably in 7 GB RAM |
 | 2026-10-19 | Shuffled-label control permutes labels between captures (not windows) | Keeps the capture-level structure; tested over 10 shuffle seeds on toy data, since one shuffle maps whole clusters and is high-variance |
+| 2026-10-19 | T7 Room A debugging uses dev-holdout probe scores only (`dev_holdout_scores`), never validation; any variant picked that way is label-tuned and gets its own name, while the default encoder stays the fixed config | Validation is for scoring only; Task 3 needs a label-clean default (PRD FR-10) |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -287,6 +288,6 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T4 | T4 commit | loss(identical) < loss(random); analytic B = 2 case within 1e-5; symmetric; MAE = 0 on perfect masked rows and ignores unmasked rows; masked share 0.5 ± 0.02 |
 | T5 | `simclr_s0` (T5 commit) | Full run: train loss 3.488 → 1.961 (epoch 60); holdout SSL loss 2.915 → 2.112, flat from ~epoch 50 (best epoch 54, kept); emb std 0.46, effective rank 55 → 69 (no collapse); runtime 218 s on the RTX 3050. Reload max abs diff 0.0. Overfit check: default augmentations reach 57% of the epoch-1 loss (3.488 → 1.976, `debug`), above the 50% target, because strong augmentations and repeated captures in a batch (256 captures, batch 256) put a floor under NT-Xent; with crop-only augmentation and batch 64 the same 256 captures reach 44% (1.821 → 0.807, `debug_croponly`), so the loop can fit. No `activity` reads in SSL code (test). |
 | T6 | T6 commit (`outputs/task2/probe/*/metrics.json`) | Per-room macro-F1 A / B (chance 0.167 / 0.200): hand-crafted 0.940 / 0.987; random-init 0.935 ± 0.011 / 0.853 ± 0.017 (3 seeds); PCA-128 0.826 / 0.928. Cross-room A→B / B→A: hand-crafted 0.167 / 0.168, random-init 0.167 / 0.226, PCA 0.390 / 0.243. Format shift A / B: hand-crafted 0.732 / 0.164 (collapses on B), random-init 0.913 / 0.211. Shuffled labels (hand-crafted): A 0.182, B 0.181, joint 0.100 (chance 0.167 / 0.200 / 0.125); other sources' single shuffles fall 0.08–0.18 (no source is above chance). |
-| T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
+| T7 | `simclr_s0/1/2` (code at `205f87a`), `probe/simclr_default/summary.json` | Per-room macro-F1 (val, mean ± std over 3 seeds): **A 0.905 ± 0.027, B 0.992 ± 0.005**, headline 0.949 ± 0.016; joint 0.944 ± 0.011; capture-level A 0.905, B 0.997. Cross-room A→B 0.226 ± 0.033, B→A 0.228 ± 0.112 (chance 0.333). Room probe 0.999; format shift A 0.825 / B 0.937. **Gate:** Room B passes (SSL min 0.987 > random-init max 0.869). Room A fails (SSL 0.878–0.932 vs random-init 0.925–0.948); seed std ≤ 0.05 in both rooms. Dev-holdout confirms a tie on A (SSL 0.913–0.935, random-init 0.934–0.951; differences of 1–3 of 186 windows per class), so this is not validation noise. Debugging continues as the T9 ablation grid, compared on dev-holdout only. |
 | T8 | | UMAP interpretation: |
 | T9 | | takeaways: |

@@ -135,6 +135,21 @@ def _linear_probe(f: np.ndarray, y: np.ndarray, meta: pd.DataFrame, train: np.nd
     }
 
 
+def dev_holdout_scores(f: np.ndarray, meta: pd.DataFrame, c_grid, seed: int = 0) -> dict:
+    """Per-room activity macro-F1 on ``dev_fold == "holdout"`` (probe fit on dev-train, best C).
+    Uses development rows only, so it may drive choices between encoders; validation may not."""
+    dev = (meta["split"] == "dev").to_numpy()
+    out = {}
+    with threadpool_limits(limits=1, user_api="blas"):
+        for room in ("A", "B"):
+            m = dev & (meta["room"] == room).to_numpy()
+            best, scores = tune_c(f[m], meta["activity"].to_numpy()[m].astype(str),
+                                  meta["dev_fold"].to_numpy()[m], c_grid, seed)
+            out[f"room_{room}"] = scores[best]
+    out["mean"] = (out["room_A"] + out["room_B"]) / 2
+    return out
+
+
 def probe_suite(f: np.ndarray, meta: pd.DataFrame, c_grid, reps: int = 1000, seed: int = 0,
                 shuffle_labels: bool = False, split=None, sets=None) -> dict:
     """The standard probe sets: per-room A and B (headline = their mean), joint, cross-room."""
