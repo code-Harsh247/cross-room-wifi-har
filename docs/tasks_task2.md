@@ -24,7 +24,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | # | Milestone | Status |
 |---|---|---|
 | T0 | Hand-over setup | ✅ |
-| T1 | Config + SSL data pipeline | ⬜ |
+| T1 | Config + SSL data pipeline | ✅ |
 | T2 | Augmentations | ⬜ |
 | T3 | Encoder + heads | ⬜ |
 | T4 | SSL objectives (NT-Xent, MAE) | ⬜ |
@@ -57,13 +57,13 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T1: Config + SSL data pipeline (PRD FR-1)
-- [ ] `configs/task2.yaml` with sections `ssl_data` (crop range 96–150, batch size, room balancing, seed), `augment`, `encoder`, `ssl`, `probe`.
-- [ ] `src/xroom/ssl_data.py`:
-  - [ ] Crop sampler over **dev** capture sequences (`load_sequences`). Crops are contiguous and never cross captures.
-  - [ ] Room-balanced batches (≈ 50/50 A/B).
-  - [ ] Input normalization: per-row mean normalization, then optional log, then per-subcarrier standardization with **dev-only** statistics (saved for reuse). Keep the 242 data subcarriers.
-  - [ ] Hard assertion: no capture with `split == "val"` ever enters the SSL dataset.
-- [ ] `tests/test_ssl_data.py`
+- [x] `configs/task2.yaml` with sections `ssl_data` (crop range 96–150, batch size, room balancing, seed), `augment`, `encoder`, `ssl`, `probe`.
+- [x] `src/xroom/ssl_data.py`:
+  - [x] Crop sampler over **dev** capture sequences (`load_sequences`). Crops are contiguous and never cross captures.
+  - [x] Room-balanced batches (≈ 50/50 A/B).
+  - [x] Input normalization: per-row mean normalization, then optional log, then per-subcarrier standardization with **dev-only** statistics (saved for reuse). Keep the 242 data subcarriers.
+  - [x] Hard assertion: no capture with `split == "val"` ever enters the SSL dataset.
+- [x] `tests/test_ssl_data.py`
 
 🔒 **Gate T1**
 | Check | How | Pass if |
@@ -266,6 +266,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | 2026-10-18 | Probe headline = mean of per-room macro-F1 (joint 8-class also reported) | Activities differ per room; per-room probes are cleaner (PRD §12) |
 | 2026-10-18 | UMAP fitted on dev embeddings, val transformed | Keeps validation out of every fit |
+| 2026-10-19 | Normalization statistics weight the two rooms equally (mean of per-room moments), fitted on all dev rows | Room B has ~3.5x more rows; matches the room-balanced batches |
+| 2026-10-19 | SSL trains on `dev_fold == train` captures; `holdout` captures give the label-free SSL validation loss | The holdout loss is only meaningful on captures the encoder never trained on |
+| 2026-10-19 | `configs/task2.yaml` layers on `task1.yaml` via `base_config` and may not redefine its sections | Task 1 preprocessing defaults stay untouched |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -273,6 +276,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | Gate | Run / commit | Key numbers |
 |---|---|---|
 | T0 | `ed058cf` + T0 commit | 4680 windows, 7 excluded captures; 29 passed; Task 1 balanced 1.0000; torch 2.14.1+cu126, CUDA True (RTX 3050 4 GB), umap-learn OK. Python 3.12 venv. |
+| T1 | T1 commit | 9 tests: no val id in 200 batches (toy + real cache); injected val id raises; batch (B, 96–150, 242) float32 finite; Room A share in [0.45, 0.55]; dev-only stats match manual within 1e-5; deterministic per seed |
 | T5 | | train loss epoch 1 → last: ; holdout loss: ; runtime: |
 | T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |

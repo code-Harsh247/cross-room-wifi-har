@@ -1,0 +1,62 @@
+# Task 2 settings: self-supervised CSI encoder + linear probe.
+# Data and preprocessing come from the base config and are NOT changed here, so the
+# windows, splits and null subcarriers are exactly the ones every Task 1 number used.
+# These defaults were fixed before any probe was run; the default encoder for Task 3
+# uses them unchanged (no activity labels in its training or selection).
+base_config: task1.yaml
+
+paths:
+  encoder_dir: outputs/task2       # SSL runs (checkpoints), probe results, figures (git-ignored)
+
+ssl_data:
+  crop_min: 96                     # SSL crops: contiguous rows, length drawn per batch from [crop_min, crop_max]
+  crop_max: 150
+  batch_size: 256
+  room_balance: true               # ~50/50 Room A/B crops per batch (uses room identity only, never activity)
+  steps_per_epoch: 40
+  holdout_batches: 8               # fixed dev-holdout crops for the label-free SSL validation loss
+  seed: 0
+
+normalization:
+  # Applied to every window/crop before the encoder (242 data subcarriers kept).
+  row: true                        # divide each row (packet) by its mean: removes per-packet gain / format scale
+  log: false                       # log(1 + x) after the row step
+  standardize: true                # per-subcarrier z-score, statistics fitted on dev rows only
+
+augment:
+  # Applied per example with probability p, on normalized (T, 242) crops.
+  crop_resize: {p: 0.8, min_frac: 0.6}            # random sub-crop, linearly resized back to T rows
+  noise: {p: 0.8, sigma: 0.1}                     # additive Gaussian, sigma relative to the example's std
+  subcarrier_mask: {p: 0.5, blocks: [1, 3], width: [8, 32]}   # zero 1-3 contiguous subcarrier blocks
+  time_mask: {p: 0.5, blocks: [1, 2], width: [5, 20]}         # zero 1-2 contiguous row blocks
+  gain: {p: 0.5, sigma: 0.1}                      # multiply each row by 1 + eps
+  format: {p: 0.5, smooth_width: [3, 7], noise_sigma: 0.3}    # half: moving average over rows; half: added row noise
+
+encoder:
+  channels: [128, 128, 256, 256]   # Conv1d -> BatchNorm -> ReLU blocks over time, subcarriers as channels
+  kernels: [7, 5, 5, 5]
+  strides: [1, 2, 2, 2]
+  embed_dim: 128                   # embedding size d (global average pool -> linear)
+  proj_hidden: 128                 # SimCLR projection head d -> 128 -> 64 (discarded after training)
+  proj_dim: 64
+
+ssl:
+  method: simclr                   # simclr | mae
+  temperature: 0.2                 # NT-Xent tau
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  epochs: 60
+  warmup_epochs: 3                 # linear warm-up, then cosine decay
+  mae_mask_ratio: 0.5              # MAE: share of time patches masked
+  mae_patch: 10                    # MAE: rows per time patch
+  amp: true                        # mixed precision on CUDA
+  seed: 0
+
+probe:
+  c_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]   # tuned on dev_fold train -> holdout by macro-F1
+  bootstrap_reps: 1000
+  bootstrap_seed: 0
+  random_init_seeds: [0, 1, 2]
+  pca_dim: 128
+  pca_time_pool: 2                 # PCA baseline: average every 2 rows before flattening (fits in RAM)
+  smooth_width: 5                  # format-shift probe: moving average in time and frequency (Task 1 M8)
