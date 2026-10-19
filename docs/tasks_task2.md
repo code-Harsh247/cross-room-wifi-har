@@ -32,7 +32,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T6 | Probe pipeline + baselines | ✅ |
 | T7 | Main SSL result (≥ 3 seeds) | ⚠️ Room B passes, Room A ties random-init (see Results log) |
 | T8 | Figures (UMAP, curves, bars) | ✅ |
-| T9 | Controls + ablations | ⬜ |
+| T9 | Controls + ablations | ✅ |
 | T10 | Task 3 hand-off API | ✅ |
 | T11 | Report section | ⬜ |
 
@@ -196,12 +196,12 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T9: Controls + ablations (PRD FR-7, FR-9)
-- [ ] Room probe on embeddings (report accuracy).
-- [ ] Format-shift probe: activity probe scored on validation windows smoothed in time and frequency (reuse `harmonize` from `scripts/task1_ablations.py`).
-- [ ] Contiguous Room B split for the per-room B probe (reuse `contiguous_split` from `scripts/task1_ablations.py`).
-- [ ] Ablations, in priority order, ≥ 2 seeds each: augmentation set → input normalization → SimCLR vs MAE → embedding size → crop range.
-- [ ] Optional: supervised upper bound (same encoder, trained with dev labels; clearly labelled).
-- [ ] `scripts/task2_ablations.py` → `outputs/task2/ablations/results.csv`
+- [x] Room probe on embeddings (report accuracy).
+- [x] Format-shift probe: activity probe scored on validation windows smoothed in time and frequency (reuse `harmonize` from `scripts/task1_ablations.py`).
+- [x] Contiguous Room B split for the per-room B probe (reuse `contiguous_split` from `scripts/task1_ablations.py`).
+- [x] Ablations, in priority order, ≥ 2 seeds each: augmentation set → input normalization → SimCLR vs MAE → embedding size → crop range.
+- [ ] Optional: supervised upper bound (not done; time went to the T7 debugging) (same encoder, trained with dev labels; clearly labelled).
+- [x] `scripts/task2_ablations.py` → `outputs/task2/ablations/results.csv`
 
 🔒 **Gate T9**
 | Check | Pass if |
@@ -275,6 +275,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | PCA baseline averages every 2 rows before flattening (75 x 242 = 18,150 dims) | The full 36,300-dim matrix of 4,680 windows does not fit comfortably in 7 GB RAM |
 | 2026-10-19 | Shuffled-label control permutes labels between captures (not windows) | Keeps the capture-level structure; tested over 10 shuffle seeds on toy data, since one shuffle maps whole clusters and is high-variance |
 | 2026-10-19 | T7 Room A debugging uses dev-holdout probe scores only (`dev_holdout_scores`), never validation; any variant picked that way is label-tuned and gets its own name, while the default encoder stays the fixed config | Validation is for scoring only; Task 3 needs a label-clean default (PRD FR-10) |
+| 2026-10-19 | Label-tuned variant chosen by the highest 3-seed dev-holdout mean (τ = 0.5); MAE reported as a tied alternative, not promoted | Picking between two dev-holdout ties by their validation score would be validation tuning |
+| 2026-10-19 | Contiguous check pre-trains new encoders (`contig_s*`) without the contiguous block or its guard files; the probe trains on rows that are dev under both splits | Otherwise the SSL encoder has seen the test block (unlabelled), and official validation captures would enter probe training |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -291,4 +293,4 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T7 | `simclr_s0/1/2` (code at `205f87a`), `probe/simclr_default/summary.json` | Per-room macro-F1 (val, mean ± std over 3 seeds): **A 0.905 ± 0.027, B 0.992 ± 0.005**, headline 0.949 ± 0.016; joint 0.944 ± 0.011; capture-level A 0.905, B 0.997. Cross-room A→B 0.226 ± 0.033, B→A 0.228 ± 0.112 (chance 0.333). Room probe 0.999; format shift A 0.825 / B 0.937. **Gate:** Room B passes (SSL min 0.987 > random-init max 0.869). Room A fails (SSL 0.878–0.932 vs random-init 0.925–0.948); seed std ≤ 0.05 in both rooms. Dev-holdout confirms a tie on A (SSL 0.913–0.935, random-init 0.934–0.951; differences of 1–3 of 186 windows per class), so this is not validation noise. Debugging continues as the T9 ablation grid, compared on dev-holdout only. |
 | T10 | T10 commit | `embed(load_encoder(cfg), x[:10])` → (10, 128) float32, finite, identical on repeat; equals the `simclr_s0` embeddings used by the probe (max diff < 1e-5); eval mode, frozen. Default = `simclr_s0` (default config, seed 0 fixed in advance, epoch 54 by dev-holdout SSL loss); PROVENANCE.md states no activity labels. Done before T8/T9 because it does not depend on them. |
 | T8 | T8 commit (`reports/figures/task2_*.png`) | UMAP (default encoder; scaler + UMAP fitted on dev embeddings, val transformed, seed 0): the embedding is organised **by room first**; Room A and Room B validation windows never share a region. Inside Room B it is organised **by activity**: tight single-activity clusters, often several per activity (likely separate recording sessions, cf. the consecutive-chunk pitfall). Room A forms one cloud with only partial activity structure (walk/fall/sit drift to different edges), matching its weaker probe. Shared activities (sit/stand/walk) of the two rooms do not co-locate, which explains the near-chance cross-room preview. |
-| T9 | | takeaways: |
+| T9 | T9 commit (`ablations/results.csv`, `summary.csv`, `results_partial.csv`; `probe/{tau_0.5,method_mae,aug_no_format}/summary.json`) | 13 variants x 2 seeds + 3rd seed for the top two; controls in every main `metrics.json`. Default row (s0, s1) val A 0.918 ± 0.019 / B 0.995 matches T7 within seed noise. Contiguous Room B: SSL with the block held out of SSL 0.987 / 0.973 (s0 / s1) vs 0.992 when seen unlabelled; hand-crafted 0.943. **Takeaways** (dev-holdout macro-F1 decides; val reported): (1) per-row normalization matters most: without it Room A drops 0.921 → 0.870 (val 0.918 → 0.871); (2) temperature matters: τ 0.1 / 0.2 / 0.5 give Room A 0.899 / 0.921 / 0.959; (3) MAE ties the best SimCLR on dev-holdout (0.977 vs 0.978 overall) and is the only variant clearly above random-init on Room A validation (0.957 ± 0.004, min 0.952 > 0.948) and the most format-shift robust (A 0.955 / B 0.961); (4) removing any single augmentation moves dev-holdout by ≤ 0.01; the format augmentation does not measurably add shift robustness (shift B 0.919 without vs 0.937 with, 2–3 seeds); (5) no variant makes cross-room transfer work (0.09–0.36 vs chance 0.33): SSL alone does not give room-invariant activity features, so Task 3 needs per-room normalization / adaptation. **T7 follow-up:** the rule fixed in advance (highest dev-holdout mean) picks τ = 0.5 as the label-tuned variant (`abl_tau_0.5_s*`); it gains on dev-holdout A (0.959) but not on val A (0.923 ± 0.004, still below random-init 0.948 max), i.e. Room A's supplied validation folder behaves differently from dev-holdout. MAE passes the T7 check in both rooms but is not promoted, since choosing it over the tied τ = 0.5 would need validation. The default encoder stays label-clean SimCLR τ = 0.2. |
