@@ -25,7 +25,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | T0 | Hand-over setup | ✅ |
 | T1 | Config + SSL data pipeline | ✅ |
-| T2 | Augmentations | ⬜ |
+| T2 | Augmentations | ✅ |
 | T3 | Encoder + heads | ⬜ |
 | T4 | SSL objectives (NT-Xent, MAE) | ⬜ |
 | T5 | Training loop + checkpoints | ⬜ |
@@ -78,10 +78,10 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T2: Augmentations (PRD FR-2)
-- [ ] `src/xroom/augment.py`: temporal crop+resize, Gaussian noise, subcarrier block masking, time masking, per-row gain jitter, format-robustness (random time smoothing / added row noise). Each has a probability and a strength in `configs/task2.yaml`.
-- [ ] `make_views(x, rng) -> (view1, view2)` for SimCLR.
-- [ ] Preview figure: one window per room, original plus 4 augmented views, saved to `outputs/task2/augment_preview.png`.
-- [ ] `tests/test_augment.py`
+- [x] `src/xroom/augment.py`: temporal crop+resize, Gaussian noise, subcarrier block masking, time masking, per-row gain jitter, format-robustness (random time smoothing / added row noise). Each has a probability and a strength in `configs/task2.yaml`.
+- [x] `make_views(x, rng) -> (view1, view2)` for SimCLR.
+- [x] Preview figure: one window per room, original plus 4 augmented views, saved to `outputs/task2/augment_preview.png` (`scripts/task2_augment_preview.py`).
+- [x] `tests/test_augment.py`
 
 🔒 **Gate T2**
 | Check | How | Pass if |
@@ -269,6 +269,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | Normalization statistics weight the two rooms equally (mean of per-room moments), fitted on all dev rows | Room B has ~3.5x more rows; matches the room-balanced batches |
 | 2026-10-19 | SSL trains on `dev_fold == train` captures; `holdout` captures give the label-free SSL validation loss | The holdout loss is only meaningful on captures the encoder never trained on |
 | 2026-10-19 | `configs/task2.yaml` layers on `task1.yaml` via `base_config` and may not redefine its sections | Task 1 preprocessing defaults stay untouched |
+| 2026-10-19 | Augmentations are batched torch functions applied on the GPU after normalization (z-space; masking writes 0 = dev mean) | Fast, and one generator makes every view reproducible |
 | 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
@@ -277,6 +278,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | T0 | `ed058cf` + T0 commit | 4680 windows, 7 excluded captures; 29 passed; Task 1 balanced 1.0000; torch 2.14.1+cu126, CUDA True (RTX 3050 4 GB), umap-learn OK. Python 3.12 venv. |
 | T1 | T1 commit | 9 tests: no val id in 200 batches (toy + real cache); injected val id raises; batch (B, 96–150, 242) float32 finite; Room A share in [0.45, 0.55]; dev-only stats match manual within 1e-5; deterministic per seed |
+| T2 | T2 commit | 23 tests: shape/dtype/finite, exact identity at p = 0, masked fraction in range, deterministic per seed. Preview: views alike but not identical, none pure noise; Room B rows visibly noisier than Room A (the format confound the `format` augmentation targets) |
 | T5 | | train loss epoch 1 → last: ; holdout loss: ; runtime: |
 | T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
