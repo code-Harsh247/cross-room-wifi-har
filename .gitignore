@@ -1,9 +1,11 @@
 # generated caches and outputs (rebuild with the scripts)
 # the raw dataset (csidata/, csvdata/) IS committed so teammates need no download
-data_cache/
-outputs/
+# no trailing slash: these may be symlinks to an external drive
+data_cache
+outputs
 
 # python
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/

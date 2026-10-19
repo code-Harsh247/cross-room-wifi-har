@@ -23,7 +23,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 
 | # | Milestone | Status |
 |---|---|---|
-| T0 | Hand-over setup | ⬜ |
+| T0 | Hand-over setup | ✅ |
 | T1 | Config + SSL data pipeline | ⬜ |
 | T2 | Augmentations | ⬜ |
 | T3 | Encoder + heads | ⬜ |
@@ -39,12 +39,12 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T0: Hand-over setup
-- [ ] Clone `code-Harsh247/cross-room-wifi-har`. Ask Harsh for collaborator access, since the repo is private.
-- [ ] The dataset comes with the clone: `csidata/` (Room A `.pcap`, with `validation/`) and `csvdata/` (Room B `.csv`), about 800 MB. Nothing to download; the first clone just takes a while. Treat it as read-only.
-- [ ] Python 3.13 with numpy, scipy, pandas, scikit-learn, PyTorch (CUDA if available), pyyaml, joblib and matplotlib.
-- [ ] Install UMAP: `pip install umap-learn`. Add `torch` and `umap-learn` to `pyproject.toml` dependencies.
-- [ ] Rebuild the Task 1 caches: `python scripts/build_windows.py --rebuild`
-- [ ] Skim `reports/task1_report_section.md` §3–4 (pipeline, splits) and PRD §3 (pitfalls).
+- [x] Clone `code-Harsh247/cross-room-wifi-har`. Ask Harsh for collaborator access, since the repo is private.
+- [x] The dataset comes with the clone: `csidata/` (Room A `.pcap`, with `validation/`) and `csvdata/` (Room B `.csv`), about 800 MB. Nothing to download; the first clone just takes a while. Treat it as read-only.
+- [x] Python 3.13 with numpy, scipy, pandas, scikit-learn, PyTorch (CUDA if available), pyyaml, joblib and matplotlib.
+- [x] Install UMAP: `pip install umap-learn`. Add `torch` and `umap-learn` to `pyproject.toml` dependencies.
+- [x] Rebuild the Task 1 caches: `python scripts/build_windows.py --rebuild`
+- [x] Skim `reports/task1_report_section.md` §3–4 (pipeline, splits) and PRD §3 (pitfalls).
 
 🔒 **Gate T0**
 | Check | Command | Pass if |
@@ -266,12 +266,13 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | 2026-10-18 | Probe headline = mean of per-room macro-F1 (joint 8-class also reported) | Activities differ per room; per-room probes are cleaner (PRD §12) |
 | 2026-10-18 | UMAP fitted on dev embeddings, val transformed | Keeps validation out of every fit |
+| 2026-10-19 | Local disk is nearly full: the venv, `data_cache/` and `outputs/` live on an external drive; `data_cache` and `outputs` in the repo are symlinks to it (`.gitignore` entries without trailing slash so the symlinks stay ignored) | CUDA PyTorch alone is ~4 GB; paths in the configs are unchanged |
 | | | |
 
 ## Results log (fill in at each gate)
 | Gate | Run / commit | Key numbers |
 |---|---|---|
-| T0 | | |
+| T0 | `ed058cf` + T0 commit | 4680 windows, 7 excluded captures; 29 passed; Task 1 balanced 1.0000; torch 2.14.1+cu126, CUDA True (RTX 3050 4 GB), umap-learn OK. Python 3.12 venv. |
 | T5 | | train loss epoch 1 → last: ; holdout loss: ; runtime: |
 | T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
