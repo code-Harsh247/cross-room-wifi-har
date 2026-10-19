@@ -31,7 +31,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T5 | Training loop + checkpoints | ✅ |
 | T6 | Probe pipeline + baselines | ✅ |
 | T7 | Main SSL result (≥ 3 seeds) | ⚠️ Room B passes, Room A ties random-init (see Results log) |
-| T8 | Figures (UMAP, curves, bars) | ⬜ |
+| T8 | Figures (UMAP, curves, bars) | ✅ |
 | T9 | Controls + ablations | ⬜ |
 | T10 | Task 3 hand-off API | ✅ |
 | T11 | Report section | ⬜ |
@@ -179,11 +179,11 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T8: Figures (PRD FR-8)
-- [ ] `scripts/task2_figures.py`:
+- [x] `scripts/task2_figures.py`:
   - UMAP (fit on dev embeddings, transform val; seed 0), two panels: colour = room, colour = activity (marker = room);
   - SSL loss curves;
   - probe bar chart (SSL vs baselines, per room, error bars over seeds).
-- [ ] Copy the final PNGs to `reports/figures/task2_*.png`.
+- [x] Copy the final PNGs to `reports/figures/task2_*.png`.
 
 🔒 **Gate T8**
 | Check | Pass if |
@@ -290,5 +290,5 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T6 | T6 commit (`outputs/task2/probe/*/metrics.json`) | Per-room macro-F1 A / B (chance 0.167 / 0.200): hand-crafted 0.940 / 0.987; random-init 0.935 ± 0.011 / 0.853 ± 0.017 (3 seeds); PCA-128 0.826 / 0.928. Cross-room A→B / B→A: hand-crafted 0.167 / 0.168, random-init 0.167 / 0.226, PCA 0.390 / 0.243. Format shift A / B: hand-crafted 0.732 / 0.164 (collapses on B), random-init 0.913 / 0.211. Shuffled labels (hand-crafted): A 0.182, B 0.181, joint 0.100 (chance 0.167 / 0.200 / 0.125); other sources' single shuffles fall 0.08–0.18 (no source is above chance). |
 | T7 | `simclr_s0/1/2` (code at `205f87a`), `probe/simclr_default/summary.json` | Per-room macro-F1 (val, mean ± std over 3 seeds): **A 0.905 ± 0.027, B 0.992 ± 0.005**, headline 0.949 ± 0.016; joint 0.944 ± 0.011; capture-level A 0.905, B 0.997. Cross-room A→B 0.226 ± 0.033, B→A 0.228 ± 0.112 (chance 0.333). Room probe 0.999; format shift A 0.825 / B 0.937. **Gate:** Room B passes (SSL min 0.987 > random-init max 0.869). Room A fails (SSL 0.878–0.932 vs random-init 0.925–0.948); seed std ≤ 0.05 in both rooms. Dev-holdout confirms a tie on A (SSL 0.913–0.935, random-init 0.934–0.951; differences of 1–3 of 186 windows per class), so this is not validation noise. Debugging continues as the T9 ablation grid, compared on dev-holdout only. |
 | T10 | T10 commit | `embed(load_encoder(cfg), x[:10])` → (10, 128) float32, finite, identical on repeat; equals the `simclr_s0` embeddings used by the probe (max diff < 1e-5); eval mode, frozen. Default = `simclr_s0` (default config, seed 0 fixed in advance, epoch 54 by dev-holdout SSL loss); PROVENANCE.md states no activity labels. Done before T8/T9 because it does not depend on them. |
-| T8 | | UMAP interpretation: |
+| T8 | T8 commit (`reports/figures/task2_*.png`) | UMAP (default encoder; scaler + UMAP fitted on dev embeddings, val transformed, seed 0): the embedding is organised **by room first**; Room A and Room B validation windows never share a region. Inside Room B it is organised **by activity**: tight single-activity clusters, often several per activity (likely separate recording sessions, cf. the consecutive-chunk pitfall). Room A forms one cloud with only partial activity structure (walk/fall/sit drift to different edges), matching its weaker probe. Shared activities (sit/stand/walk) of the two rooms do not co-locate, which explains the near-chance cross-room preview. |
 | T9 | | takeaways: |
