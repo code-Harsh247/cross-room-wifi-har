@@ -26,7 +26,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T0 | Hand-over setup | ✅ |
 | T1 | Config + SSL data pipeline | ✅ |
 | T2 | Augmentations | ✅ |
-| T3 | Encoder + heads | ⬜ |
+| T3 | Encoder + heads | ✅ |
 | T4 | SSL objectives (NT-Xent, MAE) | ⬜ |
 | T5 | Training loop + checkpoints | ⬜ |
 | T6 | Probe pipeline + baselines | ⬜ |
@@ -96,8 +96,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## T3: Encoder + heads (PRD FR-3)
-- [ ] `src/xroom/encoder.py`: 1-D CNN (242 input channels → 3–4 conv blocks → global average pool → linear to d = 128), projection head 128 → 128 → 64, and an MAE decoder head (only if T4's MAE is done).
-- [ ] `tests/test_encoder.py`
+- [x] `src/xroom/encoder.py`: 1-D CNN (242 input channels → 3–4 conv blocks → global average pool → linear to d = 128), projection head 128 → 128 → 64, and an MAE decoder head (only if T4's MAE is done).
+- [x] `tests/test_encoder.py`
 
 🔒 **Gate T3**
 | Check | How | Pass if |
@@ -279,6 +279,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | T0 | `ed058cf` + T0 commit | 4680 windows, 7 excluded captures; 29 passed; Task 1 balanced 1.0000; torch 2.14.1+cu126, CUDA True (RTX 3050 4 GB), umap-learn OK. Python 3.12 venv. |
 | T1 | T1 commit | 9 tests: no val id in 200 batches (toy + real cache); injected val id raises; batch (B, 96–150, 242) float32 finite; Room A share in [0.45, 0.55]; dev-only stats match manual within 1e-5; deterministic per seed |
 | T2 | T2 commit | 23 tests: shape/dtype/finite, exact identity at p = 0, masked fraction in range, deterministic per seed. Preview: views alike but not identical, none pure noise; Room B rows visibly noisier than Room A (the format confound the `format` augmentation targets) |
+| T3 | T3 commit | 7 tests: output (B, 128) for T = 32/96/150; all params get finite non-zero grads; GPU = CPU within 1e-4; eval deterministic. Encoder 824,704 params (< 1.5 M); peak GPU memory 291 MB for 2 x 256 crops (fits 4 GB) |
 | T5 | | train loss epoch 1 → last: ; holdout loss: ; runtime: |
 | T6 | | hand-crafted A / B: ; random-init A / B: ; PCA A / B: |
 | T7 | | SSL A / B (mean ± std): ; joint: ; cross-room A→B / B→A: |
