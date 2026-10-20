@@ -10,6 +10,7 @@ Three tasks:
 3. Few-shot activity transfer across rooms
 
 ## Where to start
+- **Reproducing results:** follow `README.md` (setup, data cache, Task 1 and Task 2 commands, expected numbers).
 - **Task 2:** read `docs/PRD_Task2_Self_Supervised_Encoder.md`, then follow `docs/tasks_task2.md` **one milestone at a time**.
   - A milestone is done only when its 🔒 gate passes.
   - Record gate numbers in its Results log.
@@ -65,6 +66,7 @@ z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
 - **Raw data is read-only.** Never modify, rename, move or delete anything in `csidata/` or `csvdata/`. Known junk is already handled by the pipeline: the duplicate `stand65(1).pcap`, `.DS_Store` files, `model_plot_1.png`, truncated packets and short captures.
 - **Do not change Task 1 preprocessing defaults** in `configs/task1.yaml` (packet filter, resampling, null subcarriers, window length). Every reported Task 1 number depends on them. Put new settings in a new config (e.g. `configs/task2.yaml`).
 - **Every reported number must come from a committed script.** Never hand-edit results into a report. Rerun the script and copy from its saved output.
+- **Keep `README.md` reproducible.** Update it in the same commit whenever setup, commands, script names, expected outputs (counts, headline numbers, test count), runtimes or task status change. Someone with only the README must be able to rebuild every reported result.
 - **AI-use disclosure is required** by the brief, along with each member's contribution. When AI tools contribute to a milestone, note it for the project's AI-use and contribution disclosure.
 
 ## Working together (two people on `main`)
