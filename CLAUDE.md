@@ -6,7 +6,7 @@ CS60055 Hackathon 2: cross-room few-shot WiFi activity recognition from CSI, in 
 
 Three tasks:
 1. Room identification (**done**)
-2. Self-supervised encoder + linear probe (**in progress**)
+2. Self-supervised encoder + linear probe (**done**; see `reports/task2_report_section.md`)
 3. Few-shot activity transfer across rooms
 
 ## Where to start
@@ -44,6 +44,11 @@ from xroom.dataset import load_windows, load_sequences, windows_from_sequences
 cfg = load_config()
 x, meta = load_windows(cfg)        # (4680, 150, 256) float16; meta: capture_id, room, activity, split, dev_fold, start
 table, seqs = load_sequences(cfg)  # full per-capture sequences (A: 150 rows, B: 500 rows)
+
+# Task 2 encoder for Task 3 (label-clean default; train + publish with scripts/task2_*.py, see the Task 2 report §10)
+from xroom.config import load_task2_config
+from xroom.encoder import load_encoder, embed
+z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
 ```
 
 ## Hard rules (from the brief; never break them)
