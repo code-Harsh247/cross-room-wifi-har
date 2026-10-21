@@ -1,0 +1,94 @@
+simclr_s0                          dev-holdout A 0.913 B 0.985 | val A 0.905 B 0.995 A→B 0.262 B→A 0.125
+simclr_s1                          dev-holdout A 0.928 B 0.991 | val A 0.932 B 0.995 A→B 0.199 B→A 0.211
+abl_aug_no_format_s0               dev-holdout A 0.919 B 0.990 | val A 0.898 B 0.997 A→B 0.127 B→A 0.268
+abl_aug_no_format_s1               dev-holdout A 0.919 B 0.988 | val A 0.913 B 0.987 A→B 0.153 B→A 0.142
+abl_aug_no_subcarrier_mask_s0      dev-holdout A 0.924 B 0.993 | val A 0.953 B 0.997 A→B 0.056 B→A 0.168
+abl_aug_no_subcarrier_mask_s1      dev-holdout A 0.925 B 0.989 | val A 0.953 B 0.992 A→B 0.132 B→A 0.364
+abl_aug_no_crop_resize_s0          dev-holdout A 0.929 B 0.985 | val A 0.919 B 0.989 A→B 0.142 B→A 0.217
+abl_aug_no_crop_resize_s1          dev-holdout A 0.908 B 0.987 | val A 0.906 B 0.995 A→B 0.152 B→A 0.193
+abl_aug_crop_only_s0               dev-holdout A 0.914 B 0.980 | val A 0.946 B 0.989 A→B 0.127 B→A 0.223
+abl_aug_crop_only_s1               dev-holdout A 0.911 B 0.973 | val A 0.945 B 0.989 A→B 0.231 B→A 0.444
+abl_norm_standardize_only_s0       dev-holdout A 0.871 B 0.985 | val A 0.872 B 0.989 A→B 0.173 B→A 0.374
+abl_norm_standardize_only_s1       dev-holdout A 0.869 B 0.988 | val A 0.869 B 0.973 A→B 0.209 B→A 0.342
+abl_norm_row_log_s0                dev-holdout A 0.923 B 0.987 | val A 0.925 B 0.992 A→B 0.210 B→A 0.270
+abl_norm_row_log_s1                dev-holdout A 0.907 B 0.989 | val A 0.945 B 0.987 A→B 0.225 B→A 0.191
+abl_method_mae_s0                  dev-holdout A 0.958 B 0.994 | val A 0.960 B 0.992 A→B 0.192 B→A 0.201
+abl_method_mae_s1                  dev-holdout A 0.953 B 0.997 | val A 0.952 B 1.000 A→B 0.225 B→A 0.276
+abl_embed_64_s0                    dev-holdout A 0.902 B 0.980 | val A 0.904 B 0.995 A→B 0.334 B→A 0.167
+abl_embed_64_s1                    dev-holdout A 0.892 B 0.985 | val A 0.924 B 0.992 A→B 0.251 B→A 0.204
+abl_embed_256_s0                   dev-holdout A 0.956 B 0.985 | val A 0.927 B 0.995 A→B 0.124 B→A 0.201
+abl_embed_256_s1                   dev-holdout A 0.947 B 0.992 | val A 0.906 B 0.995 A→B 0.249 B→A 0.262
+abl_crop_150_fixed_s0              dev-holdout A 0.930 B 0.993 | val A 0.906 B 0.995 A→B 0.173 B→A 0.256
+abl_crop_150_fixed_s1              dev-holdout A 0.928 B 0.986 | val A 0.945 B 0.997 A→B 0.187 B→A 0.292
+abl_crop_64_150_s0                 dev-holdout A 0.900 B 0.990 | val A 0.917 B 0.992 A→B 0.213 B→A 0.370
+abl_crop_64_150_s1                 dev-holdout A 0.898 B 0.983 | val A 0.912 B 0.981 A→B 0.174 B→A 0.264
+abl_tau_0.1_s0                     dev-holdout A 0.896 B 0.976 | val A 0.933 B 0.989 A→B 0.078 B→A 0.204
+abl_tau_0.1_s1                     dev-holdout A 0.903 B 0.982 | val A 0.885 B 0.984 A→B 0.198 B→A 0.242
+abl_tau_0.5_s0                     dev-holdout A 0.962 B 0.997 | val A 0.926 B 1.000 A→B 0.437 B→A 0.322
+abl_tau_0.5_s1                     dev-holdout A 0.957 B 0.997 | val A 0.919 B 1.000 A→B 0.185 B→A 0.255
+contiguous split: 375 Room B test windows, 2859 train windows; 298 captures kept out of SSL
+contiguous_B: handcrafted                            seed -1  Room B macro-F1 0.943 [0.909, 0.971]
+contiguous_B: SSL (block held out of SSL)            seed  0  Room B macro-F1 0.987 [0.973, 0.997]
+contiguous_B: SSL default (block seen unlabelled)    seed  0  Room B macro-F1 0.992 [0.984, 1.000]
+contiguous_B: SSL (block held out of SSL)            seed  1  Room B macro-F1 0.973 [0.952, 0.992]
+contiguous_B: SSL default (block seen unlabelled)    seed  1  Room B macro-F1 0.992 [0.979, 1.000]
+                                                   n_seeds  devholdout_A_mean  devholdout_B_mean  devholdout_mean_mean  val_A_mean  val_B_mean  val_headline_mean  val_cross_A_to_B_mean  \
+variant                                                                                                                                                                                    
+default                                                  2             0.9206             0.9880                0.9543      0.9185      0.9947             0.9566                 0.2308   
+aug_no_format                                            2             0.9190             0.9891                0.9540      0.9052      0.9920             0.9486                 0.1400   
+aug_no_subcarrier_mask                                   2             0.9246             0.9913                0.9579      0.9529      0.9947             0.9738                 0.0938   
+aug_no_crop_resize                                       2             0.9181             0.9861                0.9521      0.9121      0.9920             0.9521                 0.1471   
+aug_crop_only                                            2             0.9124             0.9765                0.9444      0.9456      0.9894             0.9675                 0.1786   
+norm_standardize_only                                    2             0.8697             0.9865                0.9281      0.8706      0.9813             0.9260                 0.1906   
+norm_row_log                                             2             0.9151             0.9879                0.9515      0.9353      0.9893             0.9623                 0.2173   
+method_mae                                               2             0.9558             0.9954                0.9756      0.9559      0.9960             0.9760                 0.2084   
+embed_64                                                 2             0.8968             0.9824                0.9396      0.9143      0.9933             0.9538                 0.2926   
+embed_256                                                2             0.9513             0.9881                0.9697      0.9161      0.9947             0.9554                 0.1861   
+crop_150_fixed                                           2             0.9290             0.9898                0.9594      0.9254      0.9960             0.9607                 0.1802   
+crop_64_150                                              2             0.8991             0.9868                0.9429      0.9144      0.9867             0.9505                 0.1935   
+tau_0.1                                                  2             0.8994             0.9789                0.9392      0.9087      0.9867             0.9477                 0.1378   
+tau_0.5                                                  2             0.9598             0.9967                0.9782      0.9221      1.0000             0.9610                 0.3111   
+contiguous_B: handcrafted                                1                NaN                NaN                   NaN         NaN      0.9435                NaN                    NaN   
+contiguous_B: SSL (block held out of SSL)                2                NaN                NaN                   NaN         NaN      0.9800                NaN                    NaN   
+contiguous_B: SSL default (block seen unlabelled)        2                NaN                NaN                   NaN         NaN      0.9920                NaN                    NaN   
+
+                                                   val_cross_B_to_A_mean  devholdout_A_std  devholdout_B_std  devholdout_mean_std  val_A_std  val_B_std  val_headline_std  val_cross_A_to_B_std  \
+variant                                                                                                                                                                                           
+default                                                           0.1679            0.0109            0.0042               0.0076     0.0193     0.0000            0.0097                0.0447   
+aug_no_format                                                     0.2051            0.0001            0.0013               0.0006     0.0106     0.0075            0.0015                0.0178   
+aug_no_subcarrier_mask                                            0.2659            0.0009            0.0028               0.0010     0.0004     0.0038            0.0021                0.0539   
+aug_no_crop_resize                                                0.2052            0.0147            0.0017               0.0065     0.0090     0.0038            0.0026                0.0072   
+aug_crop_only                                                     0.3338            0.0020            0.0053               0.0037     0.0009     0.0000            0.0004                0.0737   
+norm_standardize_only                                             0.3579            0.0016            0.0028               0.0006     0.0016     0.0113            0.0065                0.0253   
+norm_row_log                                                      0.2305            0.0117            0.0011               0.0053     0.0141     0.0038            0.0052                0.0110   
+method_mae                                                        0.2382            0.0038            0.0018               0.0010     0.0051     0.0057            0.0003                0.0233   
+embed_64                                                          0.1852            0.0069            0.0040               0.0014     0.0139     0.0019            0.0060                0.0583   
+embed_256                                                         0.2318            0.0065            0.0048               0.0008     0.0148     0.0000            0.0074                0.0885   
+crop_150_fixed                                                    0.2740            0.0013            0.0051               0.0032     0.0280     0.0019            0.0149                0.0095   
+crop_64_150                                                       0.3170            0.0016            0.0049               0.0032     0.0039     0.0075            0.0057                0.0272   
+tau_0.1                                                           0.2228            0.0044            0.0047               0.0045     0.0337     0.0038            0.0188                0.0845   
+tau_0.5                                                           0.2885            0.0034            0.0000               0.0017     0.0050     0.0000            0.0025                0.1786   
+contiguous_B: handcrafted                                            NaN               NaN               NaN                  NaN        NaN        NaN               NaN                   NaN   
+contiguous_B: SSL (block held out of SSL)                            NaN               NaN               NaN                  NaN        NaN     0.0094               NaN                   NaN   
+contiguous_B: SSL default (block seen unlabelled)                    NaN               NaN               NaN                  NaN        NaN     0.0000               NaN                   NaN   
+
+                                                   val_cross_B_to_A_std  
+variant                                                                  
+default                                                          0.0607  
+aug_no_format                                                    0.0891  
+aug_no_subcarrier_mask                                           0.1389  
+aug_no_crop_resize                                               0.0168  
+aug_crop_only                                                    0.1561  
+norm_standardize_only                                            0.0230  
+norm_row_log                                                     0.0558  
+method_mae                                                       0.0530  
+embed_64                                                         0.0261  
+embed_256                                                        0.0433  
+crop_150_fixed                                                   0.0261  
+crop_64_150                                                      0.0754  
+tau_0.1                                                          0.0266  
+tau_0.5                                                          0.0475  
+contiguous_B: handcrafted                                           NaN  
+contiguous_B: SSL (block held out of SSL)                           NaN  
+contiguous_B: SSL default (block seen unlabelled)                   NaN  
+wrote /run/media/abhinav/7E87-ECF8/cross-room-wifi-har/outputs/task2/ablations

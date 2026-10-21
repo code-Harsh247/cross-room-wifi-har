@@ -1,0 +1,3 @@
+variant,n_seeds,devholdout_A_mean,devholdout_B_mean,devholdout_mean_mean,val_A_mean,val_B_mean,val_headline_mean,val_cross_A_to_B_mean,val_cross_B_to_A_mean,devholdout_A_std,devholdout_B_std,devholdout_mean_std,val_A_std,val_B_std,val_headline_std,val_cross_A_to_B_std,val_cross_B_to_A_std
+tau_0.5,1,0.9569,0.9957,0.9763,0.9257,0.9947,0.9602,0.1872,0.2191,,,,,,,,
+method_mae,1,0.9622,0.9963,0.9792,0.9594,0.9867,0.973,0.3534,0.389,,,,,,,,
