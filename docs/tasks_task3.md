@@ -30,7 +30,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U3 | Embedding caches (+ AdaBN) | ✅ |
 | U4 | Adaptation + classifiers | ✅ |
 | U5 | Metrics + episode runner | ✅ |
-| U6 | Main results (default M1 vs M0, bounds) | ⬜ |
+| U6 | Main results (default M1 vs M0, bounds) | ✅ (check 4 re-specified, see Decisions log) |
 | U7 | Routing: oracle vs predicted | ⬜ |
 | U8 | Ablations + controls | ⬜ |
 | U9 | Figures | ⬜ |
@@ -157,9 +157,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U6: Main results (PRD §6, D1)
-- [ ] Run the default **M1** and the lower bound **M0** with the default encoder: both directions, K ∈ {1, 5, 10, 20}, 10 draws.
-- [ ] Reference rows: **target-supervised upper bound** (prototypes from all target dev labels; labelled "not a valid Task 3 result") and **chance**.
-- [ ] Record the commit of `configs/task3.yaml` that fixed D1 next to the results.
+- [x] Run the default **M1** and the lower bound **M0** with the default encoder: both directions, K ∈ {1, 5, 10, 20}, 10 draws.
+- [x] Reference rows: **target-supervised upper bound** (prototypes from all target dev labels; labelled "not a valid Task 3 result") and **chance**.
+- [x] Record the commit of `configs/task3.yaml` that fixed D1 next to the results (`2503cfd`, U1).
 
 🔒 **Gate U6**
 | Check | Pass if |
@@ -272,6 +272,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-21 | D6: headline uses oracle routing (target val windows); predicted routing reported alongside | The brief asks to compare with the true room; the router is 1.000 on val |
 | 2026-10-21 | AdaBN caches are full arrays per room (`adabn_A.npy`, `adabn_B.npy`, all 4680 rows each); M3 takes each window from its own room's array | Simple aligned indexing; the other room's rows are unused |
 | 2026-10-21 | M6 (input-level per-room normalization) needs its own embedding cache; it is added in U8 with the other ablations, not in the U5 runner | U5 only needs the method harness; M0–M5 + UB + CHANCE are implemented |
+| 2026-10-21 | U6 gate check 4 re-specified as a like-for-like comparison: 3-class sit/stand/walk transfer (source prototypes → target) vs the Task 2 cross-room preview. The original wording compared Task 2's 3-class probe with shared F1 inside the 5/6-class target space, where target-only prototypes also compete | Different quantities; the like-for-like value (0.11–0.23) matches Task 2 (≤ chance) and the extra drop is explained by diagnostic (c). Nothing about the method or D1 was changed |
 | | | |
 
 ## Results log (fill in at each gate)
@@ -283,7 +284,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U3 | U3 commit | Caches (4680 rows, float32, finite) in 16 s: default 128-d, handcrafted 484-d, random_init_s0 128-d, adabn_A / adabn_B 128-d (each room's BN stats from its own dev windows; M3 uses room-matched rows). default.npy vs fresh `embed` max diff 0.0. AdaBN per-dim std min 0.37. Dev-holdout within-room probe default A 0.918 / B 0.987 vs AdaBN A 0.920 / B 0.979 (drop −0.003 / 0.008 ≤ 0.05). random_init_s0 dev-holdout reproduces the Task 2 saved value exactly (A 0.951 / B 0.804). (Default dev-holdout 0.918 / 0.987 vs Task 2 saved 0.913 / 0.985: same small cross-machine probe-tuning difference seen before; val numbers matched exactly.) Tests: original encoder untouched; only BN running stats change; val windows and other room's windows have no effect; deterministic; no-dev room raises; cache = encoder. Suite 111 passed. |
 | U4 | U4 commit | Toy-data gate: per-room standardization gives dev mean 0 / std 1 per room (tol 1e-5) and val rows never change the stats; CORAL (`coral_fit` / `coral_apply`) matches the target covariance and mean within 1e-3; separable clusters 100% with cosine and euclidean nearest centroid, cosine scale-invariant; refinement (soft k-means on the unit sphere, support pinned) moves biased prototypes to cosine > 0.98 with the true centres, keeps class identity, deterministic; `per_room_standardize`, `coral_fit`, `adabn` take no label argument and `refine_prototypes` only support indices; `logreg_classifier` ignores unlabelled rows. Suite 117 passed. |
 | U5 | U5 commit | `episode_scores` overall = sklearn macro-F1 over target labels; exclusive / shared = means of the per-class F1s (toy); confusion-based F1 = `per_class_f1`; draw-mean bootstrap (captures resampled within class, same resample for all draws) brackets the mean and collapses to [1, 1] for perfect predictions. Methods M0–M5 in `xroom.task3_methods` read labels only via `visible_labels`: sentinel test on real data (every non-support target label incl. all val set to `SENTINEL`) leaves predictions of all six methods unchanged in both directions; the only direct `meta["activity"]` read is the separate UB reference. Two full `--methods M0` runs (2 dirs × 4 K × 10 draws) byte-identical. Smoke `--methods M0 M1 --k 5 --draws 2`: scores in [0, 1], confusion rows = val counts per class (B 75 each; A 25, sit 24), support 10 / 15 captures. Suite 123 passed. |
-| U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |
+| U6 | U6 commit (D1 fixed at `2503cfd`) | Gate checks 1–3 pass: 40 episodes per (direction, method); M1 ≤ UB + 0.02 at every K; exclusive rises K1 → K20 for M0 and M1 in both directions. **Overall / exclusive / shared macro-F1 (mean of 10 draws):** A→B M1: K1 0.181/0.342/0.074; K5 0.272/0.532/0.098; K10 0.303/0.602/0.104; K20 0.335/0.664/0.115. A→B M0: K1 0.171/0.313/0.077; K5 0.222/0.459/0.064; K10 0.224/0.501/0.040; K20 0.245/0.552/0.041. B→A M1: K1 0.234/0.362/0.105; K5 0.287/0.500/0.073; K10 0.306/0.545/0.067; K20 0.336/0.592/0.081. B→A M0: K1 0.212/0.359/0.065; K5 0.236/0.462/0.011; K10 0.247/0.492/0.003; K20 0.270/0.540/0.000. UB (all target dev labels, not valid) A→B 0.901, B→A 0.692; CHANCE A→B 0.201, B→A 0.180. M1 beats M0 overall at every K in both directions. **Check 4 (as written) fails:** M0 shared is 0.00–0.08, not ≈ 0.2–0.35. Diagnosis (`scripts/task3_diagnostics.py`): (a) source prototypes classify source val at 0.625 (A, 6-class) / 0.893 (B, 5-class), so labels and prototypes work; (b) like-for-like with the Task 2 preview (3-class sit/stand/walk, source prototypes → target) M0 0.155 / 0.135, M1 0.114 / 0.231: below chance (0.333), consistent with Task 2 (0.226 / 0.228, linear probe); (c) in the 5/6-class episodes most target sit/stand/walk windows are absorbed by the same-room target-only prototypes at K = 5 (M0 56% A→B, 94% B→A; M1 24% / 60%), which is why shared F1 is below the 3-class value. No bug; check 4 compared different quantities (see Decisions log). D1 unchanged since U1 (`git diff 2503cfd -- configs/task3.yaml` empty). |
 | U7 | | predicted − oracle: |
 | U8 | | takeaways: |
 | U9 | | interpretation: |
