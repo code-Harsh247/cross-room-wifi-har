@@ -1,0 +1,287 @@
+# Task 3: "New Room, Few Labels" Task Tracker
+
+**Goal:** Recognise sit/stand/walk in a target room **with no labels for them**, and its room-only activities from **K captures** (K = 1, 5, 10, 20). Both directions (A → B, B → A). Metric: macro-F1 on target validation, plus target-exclusive and shared macro-F1.
+**Spec:** [PRD_Task3_Few_Shot_Cross_Room.md](PRD_Task3_Few_Shot_Cross_Room.md) (read it first, especially §4 and §6)
+**Builds on:** Task 1 router ([../reports/task1_report_section.md](../reports/task1_report_section.md) §9) · Task 2 encoder ([../reports/task2_report_section.md](../reports/task2_report_section.md) §9)
+**Deadline:** Oct 31, 2026 · **Presentation:** Nov 2/3, 2026
+
+Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before the next milestone. If a gate fails, fix it first and record what was wrong in the Decisions log.
+
+---
+
+## How to work through this file (with Claude Code)
+1. Run `git pull --rebase` first. Then do **one milestone at a time**. Example prompt:
+   > Read CLAUDE.md, docs/PRD_Task3_Few_Shot_Cross_Room.md and docs/tasks_task3.md. Do milestone U1 only, then run its gate and show me the output.
+2. A milestone is done only when its gate passes. Tick its boxes and paste the key numbers into the **Results log**.
+3. **Commit after each passed gate** (e.g. `Add Task 3 support sampler (U2)`), with no AI attribution lines. Push small commits often; never force-push.
+4. **Two non-negotiables:**
+   - Target validation windows are only ever scored.
+   - Target labels outside the K support captures are never seen by any method, and that includes choosing the method.
+
+---
+
+## Status at a glance
+
+| # | Milestone | Status |
+|---|---|---|
+| U0 | Sync + setup check | ⬜ |
+| U1 | Config + protocol + access guard | ⬜ |
+| U2 | Support sampling | ⬜ |
+| U3 | Embedding caches (+ AdaBN) | ⬜ |
+| U4 | Adaptation + classifiers | ⬜ |
+| U5 | Metrics + episode runner | ⬜ |
+| U6 | Main results (default M1 vs M0, bounds) | ⬜ |
+| U7 | Routing: oracle vs predicted | ⬜ |
+| U8 | Ablations + controls | ⬜ |
+| U9 | Figures | ⬜ |
+| U10 | Report + final deliverables | ⬜ |
+
+---
+
+## U0: Sync + setup check
+- [ ] `git pull --rebase` (Task 2 work, the committed encoder `models/task2_default/` and `results/`)
+- [ ] `python scripts/build_windows.py --rebuild` (if `data_cache/` is missing or stale)
+- [ ] Task 1 router present at `outputs/task1/router/room_router.joblib`. If missing, run `python scripts/task1_router_variants.py` (~75 s).
+- [ ] Skim the Task 2 report §1, §8 and §9 (cross-room transfer at chance; embedding organised by room).
+
+🔒 **Gate U0**
+| Check | Command | Pass if |
+|---|---|---|
+| Tests green | `python -m pytest -q` | `86 passed` (0 skipped) |
+| Cache | `python scripts/build_windows.py --rebuild` | `wrote 4680 windows`, `excluded captures: 7` |
+| Encoder loads | `python -c "import sys; sys.path.insert(0,'src'); from xroom.config import load_task2_config; from xroom.dataset import load_windows; from xroom.encoder import load_encoder, embed; c=load_task2_config(); x,m=load_windows(c); print(embed(load_encoder(c), x[:8]).shape)"` | `(8, 128)` |
+| Router loads | `python -c "import sys; sys.path.insert(0,'src'); from xroom.config import load_config; from xroom.router import load_router; print(type(load_router(load_config())).__name__)"` | `RoomClassifier` |
+
+---
+
+## U1: Config + protocol + access guard (PRD FR-1, §4)
+- [ ] `configs/task3.yaml` (`base_config: task2.yaml`):
+  - `task3.k_values: [1, 5, 10, 20]`, `task3.draws: 10`, `task3.seed_base: 0`;
+  - method list;
+  - **default method `M1`** (decision D1), committed **now**, before any result exists;
+  - output paths under `outputs/task3`.
+- [ ] `src/xroom/fewshot.py`:
+  - [ ] `Protocol(direction)`: source/target room, shared = {sit, stand, walk}, source-only and target-only activity sets, target label space;
+  - [ ] masks: source-dev, target-dev, target-val, source-val;
+  - [ ] `visible_labels(protocol, meta, support_ids) -> pd.Series` (the access guard): returns source-dev activity labels and support-capture labels only; every other label is NA.
+- [ ] `tests/test_fewshot.py` (protocol + guard)
+
+🔒 **Gate U1**
+| Check | How | Pass if |
+|---|---|---|
+| Label sets | test, both directions | A → B target space = {empty, lying, sit, stand, walk}; B → A = {fall, sit, sitdown, stand, standup, walk}; target-only = {empty, lying} / {fall, sitdown, standup} |
+| Guard: no target leakage | test | for random support sets, every non-NA visible target label belongs to a support capture |
+| Guard: no validation labels | test | every visible label has `split == "dev"` |
+| Guard: sentinel | test: overwrite one non-support target-dev label with `"SENTINEL"` | `"SENTINEL"` never appears in `visible_labels` |
+| Default fixed early | `git log -1 -- configs/task3.yaml` | D1 (`default: M1`) is committed before any U6 result file exists |
+| Suite | `python -m pytest -q` | all pass |
+
+---
+
+## U2: Support sampling (PRD FR-2, D3)
+- [ ] `sample_support(meta, protocol, k, seed) -> list[capture_id]`: K captures per target-only class, from **target dev** only, deterministic, **nested** across K for a fixed seed (draw 20 once, take prefixes).
+- [ ] `scripts/task3_support.py` writes `outputs/task3/support/{AtoB,BtoA}_seed{r}.json` for r = 0..9.
+- [ ] Tests
+
+🔒 **Gate U2**
+| Check | Pass if |
+|---|---|
+| Counts | exactly K **captures** per target-only class (Room B support has 3K windows per class, Room A K windows) |
+| Dev only | no support capture has `split == "val"` |
+| Nested | support(K=1) ⊂ support(K=5) ⊂ support(K=10) ⊂ support(K=20) for every seed |
+| Deterministic | same seed gives an identical manifest; different seeds differ |
+| Coverage | across 10 seeds at K = 20, ≥ 100 distinct captures per class are used (no tiny pool) |
+| Suite | all tests pass |
+
+---
+
+## U3: Embedding caches + AdaBN (PRD FR-3, M3)
+- [ ] `scripts/task3_embed.py` caches (n = 4680, d) arrays in `outputs/task3/emb/`:
+  - `default.npy` (Task 2 default encoder);
+  - `handcrafted.npy` (`xroom.probe.handcrafted_features`);
+  - `random_init_s0.npy`.
+- [ ] `xroom.adapt.adabn(encoder, windows)`: copy the encoder and re-estimate BatchNorm running stats in train mode, no grad, cumulative average over **unlabelled dev windows of one room**. Produce `adabn_A.npy` / `adabn_B.npy` (each room's windows embedded with its own BN stats).
+- [ ] Tests
+
+🔒 **Gate U3**
+| Check | Pass if |
+|---|---|
+| Cache consistency | `default.npy` equals `embed(load_encoder(cfg), x)` (max abs diff < 1e-5) |
+| AdaBN data | BN stats re-estimated from that room's `split == "dev"` windows only (assert in code + test) |
+| AdaBN sanity | AdaBN embeddings finite, per-dim std > 1e-2; within-room probe (`xroom.probe.linear_probe`, dev → dev-holdout) not lower than the default by > 0.05. If it is, BN re-estimation is broken |
+| Original untouched | the default encoder's weights and BN buffers are unchanged after `adabn` (it works on a copy) |
+| Shapes / dtype | all caches (4680, d) float32, finite |
+| Suite | all tests pass |
+
+---
+
+## U4: Adaptation + classifiers (PRD FR-4, §6)
+- [ ] `xroom.adapt`:
+  - `per_room_standardize(f, rooms, fit_mask)` (stats from `fit_mask` rows of each room = dev rows);
+  - `coral(source, target)`;
+  - `refine_prototypes(protos, unlabeled, fixed=support, iters, temp)` (soft k-means; iterations and temperature fixed in config).
+- [ ] `xroom.fewshot`:
+  - `prototypes(f, labels)`;
+  - `nearest_centroid(f, protos, metric="cosine")`;
+  - `logreg_classifier(...)` (M5).
+- [ ] Tests on toy data
+
+🔒 **Gate U4**
+| Check | Pass if |
+|---|---|
+| Per-room standardization | each room's dev rows have mean ≈ 0 and std ≈ 1 per dim (tol 1e-5); val rows are transformed with dev stats only (test: changing a val row does not change the stats) |
+| CORAL | on toy Gaussians, the source covariance after CORAL matches the target within 1e-3 |
+| Nearest centroid | toy separable clusters are classified 100%; cosine metric is scale-invariant |
+| Refinement | on toy data with shifted clusters, refined prototypes move toward the true centres; support-pinned prototypes keep their class; deterministic |
+| No labels used | refinement and normalization signatures take no label argument except support labels (code review + test) |
+| Suite | all tests pass |
+
+---
+
+## U5: Metrics + episode runner (PRD FR-5, §4)
+- [ ] `src/xroom/task3_metrics.py`:
+  - `episode_scores(y_true, y_pred, protocol)` → overall / exclusive / shared macro-F1, per-class F1, confusion matrix (reuse `xroom.probe.macro_f1`, `per_class_f1`);
+  - `aggregate(draws)` → mean ± std, plus a capture bootstrap CI of the mean.
+- [ ] `scripts/task3_run.py --methods M0 M1 ... --sources default ... --directions AtoB BtoA` → `outputs/task3/runs/<direction>/<source>/<method>/K{k}_seed{r}.json` + `summary.json`.
+- [ ] Tests
+
+🔒 **Gate U5**
+| Check | Pass if |
+|---|---|
+| Metric correctness | toy check: overall = sklearn macro-F1 over the target labels; exclusive = mean of the room-only per-class F1s; shared = mean of the sit/stand/walk F1s |
+| Deterministic | two runs of `task3_run.py --methods M0 --sources default` give byte-identical JSON |
+| Guard enforced | the runner obtains labels only through `visible_labels` (grep + test with the sentinel label) |
+| Smoke run | `--methods M0 M1 --sources default --k 5 --draws 2` finishes; all scores in [0, 1]; confusion rows sum to the per-class val counts |
+| Suite | all tests pass |
+
+---
+
+## U6: Main results (PRD §6, D1)
+- [ ] Run the default **M1** and the lower bound **M0** with the default encoder: both directions, K ∈ {1, 5, 10, 20}, 10 draws.
+- [ ] Reference rows: **target-supervised upper bound** (prototypes from all target dev labels; labelled "not a valid Task 3 result") and **chance**.
+- [ ] Record the commit of `configs/task3.yaml` that fixed D1 next to the results.
+
+🔒 **Gate U6**
+| Check | Pass if |
+|---|---|
+| Complete | 2 directions × 4 K × 10 draws × {M0, M1} episode files exist; `summary.json` has mean ± std for overall / exclusive / shared |
+| Sanity: bounds | for every K, M1 overall ≤ upper bound + 0.02; all scores > 0 |
+| Sanity: K trend | mean exclusive macro-F1 at K = 20 ≥ at K = 1 in both directions (if not, inspect support sampling before going on) |
+| Consistency with Task 2 | M0 shared macro-F1 is near the Task 2 cross-room preview (≈ 0.2–0.35). A very different value means a bug in label spaces or prototypes |
+| Default untouched | D1 is unchanged since U1 (`git diff <U1 commit> -- configs/task3.yaml` shows no change to `default`) |
+| Results log | numbers filled in |
+
+---
+
+## U7: Routing: oracle vs predicted (PRD FR-7, D6)
+- [ ] `scripts/task3_routing.py`: pool the val windows of both rooms. Route with `route(mode="oracle")` and `route(mode="predicted", router=load_router(cfg))` (strict). Target-routed windows → episode model (M1); source-routed → source nearest-centroid model. Every K, both directions, 10 draws.
+- [ ] Report target-window macro-F1 and pooled macro-F1 for each routing.
+
+🔒 **Gate U7**
+| Check | Pass if |
+|---|---|
+| Oracle = main result | the oracle-routing target-window macro-F1 equals the U6 M1 numbers exactly |
+| Router accuracy | predicted routing room accuracy on pooled val = 1.000 (as in Task 1); if lower, list the misrouted windows |
+| Difference reported | predicted − oracle macro-F1 per K and direction is saved (expected ≈ 0) |
+| Strict router | the default run uses `kind="strict"`; the activity-tuned router only appears in a clearly labelled stress test |
+
+---
+
+## U8: Ablations + controls (PRD FR-6, FR-9)
+- [ ] Method ladder on the default encoder: M2 (CORAL), M3 (AdaBN + M1), M4 (refinement), M5 (logreg), M6 (input-level per-room norm). All K, both directions, 10 draws.
+- [ ] Feature sources with M1: hand-crafted, random-init.
+- [ ] Controls:
+  - **shuffled support** (labels permuted across target-only classes);
+  - **contiguous Room B check** for A → B (support outside a contiguous val block; reuse `contiguous_split`).
+- [ ] Table at K = 5 (`outputs/task3/ablations_K5.csv`) + full table.
+
+🔒 **Gate U8**
+| Check | Pass if |
+|---|---|
+| Complete | every ablation row has all 4 K × 2 directions × 10 draws |
+| Shuffled support | exclusive macro-F1 drops to about chance (≤ 1 / n_target_only + 0.1) |
+| Default unchanged | the M1 row equals U6 exactly |
+| No re-selection | if an ablation beats M1, it is marked "ablation, not selected (would need target labels)"; D1 stays |
+| Takeaways | Results log: 3–5 bullets on what helps / what does not |
+
+---
+
+## U9: Figures (PRD FR-8)
+- [ ] `scripts/task3_figures.py`:
+  - `task3_label_efficiency.png`: overall + exclusive macro-F1 vs K, both directions, M1 vs M0, upper bound and chance lines, ± std bands;
+  - `task3_confusion_K5.png`: M1, both directions, row-normalized with counts, plus a per-class P/R/F1 table in `outputs/task3/per_class_K5.csv`;
+  - `task3_routing.png`: oracle vs predicted bars;
+  - optional `task3_umap_alignment.png`: before/after per-room normalization.
+- [ ] Copy to `reports/figures/`.
+
+🔒 **Gate U9**
+| Check | Pass if |
+|---|---|
+| Files exist | the three required PNGs in `reports/figures/` |
+| Correct data | the plotted means equal `summary.json` values (spot-check 3 points) |
+| Readable | axes labelled, legends not covering data, both directions shown, K on the x-axis as 1/5/10/20 |
+| Interpretation | 2–3 sentences per figure in the Results log |
+
+---
+
+## U10: Report + final deliverables (PRD FR-10)
+- [ ] `scripts/task3_report_numbers.py` → `outputs/task3/report_numbers.md`. `scripts/task3_check_report.py` checks the report against it.
+- [ ] `reports/task3_report_section.md` (Task 1/2 structure):
+  - task + summary;
+  - protocol (episode table, access rules);
+  - methods (D1 + ladder);
+  - main results table (all K, both directions, overall / exclusive / shared);
+  - label-efficiency figure;
+  - confusion @ K = 5 + per-class table;
+  - oracle vs predicted;
+  - ablations + controls;
+  - limitations;
+  - reproduction.
+- [ ] **Final deliverables check:** a table mapping every slide-12 item to its section and figure across Tasks 1–3. Put it in the Task 3 report or a short `reports/deliverables_checklist.md`.
+- [ ] `python scripts/snapshot_results.py` → commit `results/task3/`.
+- [ ] Update `README.md` (Task 3 commands, expected numbers, test count), `CLAUDE.md` (Task 3 status) and `docs/ai_use_and_contributions.md`.
+
+🔒 **Gate U10**
+| Check | Pass if |
+|---|---|
+| Numbers verified | `python scripts/task3_check_report.py` reports every number found |
+| Deliverables | every slide-12 item has a ✔ and a link that resolves on GitHub |
+| Reproducible | a fresh clone + README commands rebuild every Task 3 number (or the README says which saved results to use) |
+| Tests | `python -m pytest -q` all pass; README states the new test count |
+| Rules checklist | all ticked |
+
+---
+
+## Rules checklist (check before reporting any result)
+- [ ] Target validation windows only scored (no normalization, refinement, AdaBN or selection on them)
+- [ ] Target labels only from the K support captures (access guard + sentinel test pass)
+- [ ] K counts captures; support drawn from target dev only
+- [ ] Default method (D1) fixed before results and never re-selected
+- [ ] The Task 2 encoder and Task 1 router are used as published (label-clean)
+- [ ] Python only; no authors' MATLAB code; no other team's code
+- [ ] Small commits, no AI attribution lines, no force-push
+
+## Decisions log
+| Date | Decision | Why |
+|---|---|---|
+| 2026-10-21 | D1: default method = M1 (per-room embedding standardization + nearest-centroid prototypes, Task 2 default encoder, cosine) | Follows the brief's hints and the Task 2 hand-off; no tunable hyperparameters; no target labels beyond K |
+| 2026-10-21 | D2: no transductive use of target validation windows; test-time adaptation uses unlabelled target dev only | "Validation is for scoring only", kept literal |
+| 2026-10-21 | D3: 10 draws (seeds 0–9), nested support across K | Smooth, comparable label-efficiency curves; variance estimate |
+| 2026-10-21 | D4: room-only prototypes = mean over all windows of the K support captures | Room B captures have 3 windows; K counts captures |
+| 2026-10-21 | D5: source-only classes excluded from the target label space | The target room's activity set is known |
+| 2026-10-21 | D6: headline uses oracle routing (target val windows); predicted routing reported alongside | The brief asks to compare with the true room; the router is 1.000 on val |
+| | | |
+
+## Results log (fill in at each gate)
+| Gate | Run / commit | Key numbers |
+|---|---|---|
+| U0 | | |
+| U1 | | D1 committed at: |
+| U2 | | |
+| U3 | | AdaBN within-room probe A / B: |
+| U5 | | |
+| U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |
+| U7 | | predicted − oracle: |
+| U8 | | takeaways: |
+| U9 | | interpretation: |
+| U10 | | |

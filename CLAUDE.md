@@ -7,10 +7,11 @@ CS60055 Hackathon 2: cross-room few-shot WiFi activity recognition from CSI, in 
 Three tasks:
 1. Room identification (**done**)
 2. Self-supervised encoder + linear probe (**done**; see `reports/task2_report_section.md`)
-3. Few-shot activity transfer across rooms
+3. Few-shot activity transfer across rooms (**in progress**)
 
 ## Where to start
 - **Reproducing results:** follow `README.md` (setup, data cache, Task 1 and Task 2 commands, expected numbers).
+- **Task 3 (current):** read `docs/PRD_Task3_Few_Shot_Cross_Room.md`, then follow `docs/tasks_task3.md` **one milestone at a time** (same gate rules as below). The default method (decision D1) must be committed before any result exists.
 - **Task 2:** read `docs/PRD_Task2_Self_Supervised_Encoder.md`, then follow `docs/tasks_task2.md` **one milestone at a time**.
   - A milestone is done only when its 🔒 gate passes.
   - Record gate numbers in its Results log.

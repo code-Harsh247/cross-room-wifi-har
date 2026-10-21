@@ -6,7 +6,7 @@ CS60055 Hackathon Challenge 2: activity recognition from WiFi CSI (channel state
 |---|---|---|
 | 1. Room identification | Done | [reports/task1_report_section.md](reports/task1_report_section.md) |
 | 2. Self-supervised encoder + linear probe | Done | [reports/task2_report_section.md](reports/task2_report_section.md) |
-| 3. Few-shot activity transfer across rooms | Not started | — |
+| 3. Few-shot activity transfer across rooms | In progress (plan: [PRD](docs/PRD_Task3_Few_Shot_Cross_Room.md), [tasks](docs/tasks_task3.md)) | — |
 
 - **Room A:** Experiment 2, `.pcap` files in `csidata/` (its validation set is in `csidata/validation/`).
 - **Room B:** Experiment 3, `.csv` files in `csvdata/` (validation captures are listed in `splits/room_b_validation.json`).
