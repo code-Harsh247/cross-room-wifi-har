@@ -132,7 +132,21 @@ x, meta = load_windows(cfg)
 z = embed(load_encoder(cfg), x)      # (4680, 128) embeddings from the committed models/task2_default/
 ```
 
-## 6. Repository layout
+## 6. Saved results (no rerun needed)
+
+`results/` is a committed copy of `outputs/` with every model checkpoint left out (2.4 MB). It holds the saved files behind every reported number:
+
+| Path | Contents |
+|---|---|
+| `results/task1/` | Task 1 metrics, predictions, model selection, router files |
+| `results/task2/probe/<name>/metrics.json`, `summary.json` | probe scores, confusion matrices, bootstrap intervals, controls, dev-holdout scores |
+| `results/task2/ablations/` | `results.csv`, `summary.csv` (+ `_partial` for third seeds), `run.log` |
+| `results/task2/<run>/` | `config.yaml`, `history.json` (loss and collapse metrics per epoch), `run.json`, `norm_stats.npz` per SSL run |
+| `results/task2/report_numbers.md` | every number in the Task 2 report |
+
+The scripts always write to `outputs/`. After rerunning them, refresh the snapshot with `python scripts/snapshot_results.py`.
+
+## 7. Repository layout
 
 ```
 csidata/, csvdata/      raw data (read-only, committed)
@@ -143,10 +157,12 @@ scripts/                one entry point per stage (task1_*, task2_*)
 tests/                  pytest suite
 reports/                write-ups; reports/figures/ holds committed figures
 docs/                   PRDs, gated task trackers, AI-use and contribution disclosure
+models/task2_default/   committed Task 2 default encoder (used by Task 3)
+results/                committed snapshot of outputs/ without checkpoints
 data_cache/, outputs/   generated, git-ignored (rebuild with the scripts above)
 ```
 
-## 7. Rules the results depend on
+## 8. Rules the results depend on
 
 - **Validation is used only for scoring.** It is never used for training (including self-supervised pre-training), normalization statistics, tuning, checkpoint selection or few-shot support. Tuning uses `dev_fold` train → holdout.
 - **Splits are by capture**, and the validation sets are fixed.
@@ -155,7 +171,7 @@ data_cache/, outputs/   generated, git-ignored (rebuild with the scripts above)
 
 Full rules: [CLAUDE.md](CLAUDE.md). AI-tool use and member contributions: [docs/ai_use_and_contributions.md](docs/ai_use_and_contributions.md).
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Fix |
 |---|---|

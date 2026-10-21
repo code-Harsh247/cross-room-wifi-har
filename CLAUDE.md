@@ -25,6 +25,7 @@ Three tasks:
 - `scripts/`: one entry point per stage. `tests/`: pytest. `configs/task1.yaml`: all settings.
 - `reports/`: write-ups. `reports/figures/`: committed figures.
 - `models/task2_default/`: the committed Task 2 default encoder (`load_encoder(cfg)` loads it).
+- `results/`: committed snapshot of `outputs/` without checkpoints (metrics, tables, histories, figures). Refresh it with `python scripts/snapshot_results.py` and commit it with any report whose numbers changed.
 - `outputs/` and `data_cache/` are git-ignored, so copy final figures to `reports/figures/`.
 - **The raw dataset is committed** at the repo root:
   - `csidata/`: Room A, including `validation/`;
