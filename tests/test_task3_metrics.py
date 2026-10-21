@@ -103,3 +103,20 @@ def test_methods_are_deterministic():
         a = predict(method, feats, meta, P_AB, support, CFG, seed=2)
         b = predict(method, feats, meta, P_AB, support, CFG, seed=2)
         assert np.array_equal(a, b), method
+
+
+# ---------- U7: source model for routed windows ----------
+
+from xroom.task3_methods import predict_source  # noqa: E402
+
+
+@pytest.mark.parametrize("direction", ["AtoB", "BtoA"])
+def test_source_model_sees_no_target_labels(direction):
+    meta, feats = _real()
+    p = Protocol.from_config(CFG, direction)
+    poisoned = meta.copy()
+    poisoned.loc[poisoned["room"] == p.target, "activity"] = "SENTINEL"
+    poisoned.loc[(poisoned["room"] == p.source) & (poisoned["split"] == "val"), "activity"] = "SENTINEL"
+    clean = predict_source(feats, meta, p, CFG)
+    assert np.array_equal(clean, predict_source(feats, poisoned, p, CFG))
+    assert len(clean) == p.masks(meta)["source_val"].sum() and set(clean) <= set(p.source_labels)

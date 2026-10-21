@@ -79,3 +79,15 @@ def _upper_bound(feats: dict[str, np.ndarray], meta: pd.DataFrame, protocol: Pro
     lab = np.where(m["target_dev"], meta["activity"].to_numpy(dtype=object), None)
     classes, protos = prototypes(f, lab, classes=protocol.target_labels)
     return nearest_centroid(f[m["target_val"]], classes, protos, metric)
+
+
+def predict_source(feats: dict[str, np.ndarray], meta: pd.DataFrame, protocol: Protocol, cfg: dict) -> np.ndarray:
+    """Source-room model for windows routed to the source room (FR-7): M1 features, nearest
+    centroid with prototypes of every source class from source development labels (seen only
+    through the access guard). Predicts ``protocol.masks(meta)["source_val"]`` rows."""
+    m = protocol.masks(meta)
+    vis = visible_labels(protocol, meta, ())  # source dev labels only
+    lab = np.where(vis.notna().to_numpy() & m["source_dev"], vis.to_numpy(dtype=object), None)
+    f = _features("M1", feats, meta)
+    classes, protos = prototypes(f, lab, classes=protocol.source_labels)
+    return nearest_centroid(f[m["source_val"]], classes, protos, cfg["task3"]["distance"])

@@ -31,7 +31,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U4 | Adaptation + classifiers | ✅ |
 | U5 | Metrics + episode runner | ✅ |
 | U6 | Main results (default M1 vs M0, bounds) | ✅ (check 4 re-specified, see Decisions log) |
-| U7 | Routing: oracle vs predicted | ⬜ |
+| U7 | Routing: oracle vs predicted | ✅ |
 | U8 | Ablations + controls | ⬜ |
 | U9 | Figures | ⬜ |
 | U10 | Report + final deliverables | ⬜ |
@@ -174,8 +174,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U7: Routing: oracle vs predicted (PRD FR-7, D6)
-- [ ] `scripts/task3_routing.py`: pool the val windows of both rooms. Route with `route(mode="oracle")` and `route(mode="predicted", router=load_router(cfg))` (strict). Target-routed windows → episode model (M1); source-routed → source nearest-centroid model. Every K, both directions, 10 draws.
-- [ ] Report target-window macro-F1 and pooled macro-F1 for each routing.
+- [x] `scripts/task3_routing.py`: pool the val windows of both rooms. Route with `route(mode="oracle")` and `route(mode="predicted", router=load_router(cfg))` (strict). Target-routed windows → episode model (M1); source-routed → source nearest-centroid model. Every K, both directions, 10 draws.
+- [x] Report target-window macro-F1 and pooled macro-F1 for each routing.
 
 🔒 **Gate U7**
 | Check | Pass if |
@@ -285,7 +285,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U4 | U4 commit | Toy-data gate: per-room standardization gives dev mean 0 / std 1 per room (tol 1e-5) and val rows never change the stats; CORAL (`coral_fit` / `coral_apply`) matches the target covariance and mean within 1e-3; separable clusters 100% with cosine and euclidean nearest centroid, cosine scale-invariant; refinement (soft k-means on the unit sphere, support pinned) moves biased prototypes to cosine > 0.98 with the true centres, keeps class identity, deterministic; `per_room_standardize`, `coral_fit`, `adabn` take no label argument and `refine_prototypes` only support indices; `logreg_classifier` ignores unlabelled rows. Suite 117 passed. |
 | U5 | U5 commit | `episode_scores` overall = sklearn macro-F1 over target labels; exclusive / shared = means of the per-class F1s (toy); confusion-based F1 = `per_class_f1`; draw-mean bootstrap (captures resampled within class, same resample for all draws) brackets the mean and collapses to [1, 1] for perfect predictions. Methods M0–M5 in `xroom.task3_methods` read labels only via `visible_labels`: sentinel test on real data (every non-support target label incl. all val set to `SENTINEL`) leaves predictions of all six methods unchanged in both directions; the only direct `meta["activity"]` read is the separate UB reference. Two full `--methods M0` runs (2 dirs × 4 K × 10 draws) byte-identical. Smoke `--methods M0 M1 --k 5 --draws 2`: scores in [0, 1], confusion rows = val counts per class (B 75 each; A 25, sit 24), support 10 / 15 captures. Suite 123 passed. |
 | U6 | U6 commit (D1 fixed at `2503cfd`) | Gate checks 1–3 pass: 40 episodes per (direction, method); M1 ≤ UB + 0.02 at every K; exclusive rises K1 → K20 for M0 and M1 in both directions. **Overall / exclusive / shared macro-F1 (mean of 10 draws):** A→B M1: K1 0.181/0.342/0.074; K5 0.272/0.532/0.098; K10 0.303/0.602/0.104; K20 0.335/0.664/0.115. A→B M0: K1 0.171/0.313/0.077; K5 0.222/0.459/0.064; K10 0.224/0.501/0.040; K20 0.245/0.552/0.041. B→A M1: K1 0.234/0.362/0.105; K5 0.287/0.500/0.073; K10 0.306/0.545/0.067; K20 0.336/0.592/0.081. B→A M0: K1 0.212/0.359/0.065; K5 0.236/0.462/0.011; K10 0.247/0.492/0.003; K20 0.270/0.540/0.000. UB (all target dev labels, not valid) A→B 0.901, B→A 0.692; CHANCE A→B 0.201, B→A 0.180. M1 beats M0 overall at every K in both directions. **Check 4 (as written) fails:** M0 shared is 0.00–0.08, not ≈ 0.2–0.35. Diagnosis (`scripts/task3_diagnostics.py`): (a) source prototypes classify source val at 0.625 (A, 6-class) / 0.893 (B, 5-class), so labels and prototypes work; (b) like-for-like with the Task 2 preview (3-class sit/stand/walk, source prototypes → target) M0 0.155 / 0.135, M1 0.114 / 0.231: below chance (0.333), consistent with Task 2 (0.226 / 0.228, linear probe); (c) in the 5/6-class episodes most target sit/stand/walk windows are absorbed by the same-room target-only prototypes at K = 5 (M0 56% A→B, 94% B→A; M1 24% / 60%), which is why shared F1 is below the 3-class value. No bug; check 4 compared different quantities (see Decisions log). D1 unchanged since U1 (`git diff 2503cfd -- configs/task3.yaml` empty). |
-| U7 | | predicted − oracle: |
+| U7 | U7 commit | Pooled val of both rooms (524 windows); strict router accuracy 1.0000, 0 misrouted. Oracle-routing target macro-F1 equals the U6 M1 overall score for every draw, K and direction. Predicted − oracle = 0.000 for target and pooled macro-F1 at every K (saved in `routing/summary.json`). Pooled 8-activity macro-F1 (oracle = predicted): AtoB K1 0.429, K5 0.484, K10 0.504, K20 0.523; BtoA K1 0.631, K5 0.688, K10 0.704, K20 0.725. Activity-tuned router not used (no stress test needed at 1.000). New sentinel test: the source model (`predict_source`) never sees target labels. Suite 125 passed. |
 | U8 | | takeaways: |
 | U9 | | interpretation: |
 | U10 | | |
