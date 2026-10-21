@@ -34,3 +34,7 @@ posthoc:
     seed: 0              #   --run t3_mae_s0 --seed 0 --method mae (Task 2 defaults otherwise)
   batch2_sources: [handcrafted, random_init_s0, default+random_init_s0, slice25, slice50, mae_s0]
   batch2_methods: [M1, M9, M10]   # each run on every batch-2 source (M10 on default too)
+
+  # ---- batch 2b robustness check (fixed after seeing mae_s0, before training these) ----
+  mae_seeds: [0, 1, 2]   # MAE encoders t3_mae_s<seed>, same command and defaults as seed 0;
+                         #   sources mae_s1, mae_s2 with M1 / M9 / M10, reported as mean over seeds
