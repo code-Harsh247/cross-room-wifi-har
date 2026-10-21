@@ -47,6 +47,8 @@ def load_feats(emb_dir: Path, source: str, meta) -> dict[str, np.ndarray]:
     if source == "default":
         rooms = meta["room"].to_numpy()[:, None]
         feats["adabn"] = np.where(rooms == "A", np.load(emb_dir / "adabn_A.npy"), np.load(emb_dir / "adabn_B.npy"))
+        feats["inputnorm"] = np.where(rooms == "A", np.load(emb_dir / "inputnorm_A.npy"),
+                                      np.load(emb_dir / "inputnorm_B.npy"))
     return feats
 
 
@@ -74,8 +76,8 @@ def main() -> None:
             for source in args.sources:
                 feats = load_feats(root / "emb", source, meta)
                 for method in args.methods:
-                    if method == "M3" and source != "default":
-                        continue  # AdaBN caches exist for the default encoder only
+                    if method in ("M3", "M6") and source != "default":
+                        continue  # AdaBN / input-norm caches exist for the default encoder only
                     summary = {"direction": direction, "source": source, "method": method,
                                "target_labels": list(p.target_labels), "by_k": {}}
                     for k in args.k:

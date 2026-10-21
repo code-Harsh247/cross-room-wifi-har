@@ -7,6 +7,8 @@ windows_L150_meta.csv:
   random_init_s0.npy   untrained encoder (seed 0), built as in scripts/task2_probe.py
   adabn_A.npy          default encoder with BatchNorm stats re-estimated on Room A dev windows
   adabn_B.npy          ... on Room B dev windows
+  inputnorm_A.npy      default encoder with its input normalization re-fitted on Room A dev windows (M6)
+  inputnorm_B.npy      ... on Room B dev windows
 M3 uses adabn_<room>.npy rows for that room's windows. Also writes emb/manifest.json.
 
 Usage:  python scripts/task3_embed.py
@@ -24,7 +26,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
-from xroom.adapt import adabn  # noqa: E402
+from xroom.adapt import adabn, room_input_stats  # noqa: E402
 from xroom.config import load_task3_config  # noqa: E402
 from xroom.dataset import load_sequences, load_windows  # noqa: E402
 from xroom.encoder import FrozenEncoder, build_encoder, default_device, embed, load_encoder  # noqa: E402
@@ -67,6 +69,10 @@ def main() -> None:
     batch = cfg["task3"]["adabn_batch"]
     for room in ("A", "B"):
         save(out, f"adabn_{room}", embed(adabn(enc, x, meta, room, batch), x), info)
+
+    for room in ("A", "B"):  # M6: input normalization re-fitted per room on its dev windows
+        fe = FrozenEncoder(enc.model, room_input_stats(enc.stats, x, meta, room), enc.device, enc.run_dir)
+        save(out, f"inputnorm_{room}", embed(fe, x), info)
 
     info["seconds"] = round(time.time() - t0, 1)
     (out / "manifest.json").write_text(json.dumps(info, indent=2), encoding="utf-8")

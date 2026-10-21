@@ -32,7 +32,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U5 | Metrics + episode runner | ✅ |
 | U6 | Main results (default M1 vs M0, bounds) | ✅ (check 4 re-specified, see Decisions log) |
 | U7 | Routing: oracle vs predicted | ✅ |
-| U8 | Ablations + controls | ⬜ |
+| U8 | Ablations + controls | ✅ |
 | U9 | Figures | ⬜ |
 | U10 | Report + final deliverables | ⬜ |
 
@@ -188,12 +188,12 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U8: Ablations + controls (PRD FR-6, FR-9)
-- [ ] Method ladder on the default encoder: M2 (CORAL), M3 (AdaBN + M1), M4 (refinement), M5 (logreg), M6 (input-level per-room norm). All K, both directions, 10 draws.
-- [ ] Feature sources with M1: hand-crafted, random-init.
-- [ ] Controls:
+- [x] Method ladder on the default encoder: M2 (CORAL), M3 (AdaBN + M1), M4 (refinement), M5 (logreg), M6 (input-level per-room norm). All K, both directions, 10 draws.
+- [x] Feature sources with M1: hand-crafted, random-init.
+- [x] Controls:
   - **shuffled support** (labels permuted across target-only classes);
   - **contiguous Room B check** for A → B (support outside a contiguous val block; reuse `contiguous_split`).
-- [ ] Table at K = 5 (`outputs/task3/ablations_K5.csv`) + full table.
+- [x] Table at K = 5 (`outputs/task3/ablations_K5.csv`) + full table.
 
 🔒 **Gate U8**
 | Check | Pass if |
@@ -273,6 +273,8 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-21 | AdaBN caches are full arrays per room (`adabn_A.npy`, `adabn_B.npy`, all 4680 rows each); M3 takes each window from its own room's array | Simple aligned indexing; the other room's rows are unused |
 | 2026-10-21 | M6 (input-level per-room normalization) needs its own embedding cache; it is added in U8 with the other ablations, not in the U5 runner | U5 only needs the method harness; M0–M5 + UB + CHANCE are implemented |
 | 2026-10-21 | U6 gate check 4 re-specified as a like-for-like comparison: 3-class sit/stand/walk transfer (source prototypes → target) vs the Task 2 cross-room preview. The original wording compared Task 2's 3-class probe with shared F1 inside the 5/6-class target space, where target-only prototypes also compete | Different quantities; the like-for-like value (0.11–0.23) matches Task 2 (≤ chance) and the extra drop is explained by diagnostic (c). Nothing about the method or D1 was changed |
+| 2026-10-21 | M6 caches fit each room's input normalization on its dev 150-row windows (`room_input_stats`), not on full sequences | Same windows as every other Task 3 feature; dev only |
+| 2026-10-21 | M5 (logistic regression) beats the default M1 in 7 of 8 cells but is reported as an ablation, not promoted | Promoting it would select with target validation labels (D1); the report states the gap |
 | | | |
 
 ## Results log (fill in at each gate)
@@ -286,6 +288,6 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U5 | U5 commit | `episode_scores` overall = sklearn macro-F1 over target labels; exclusive / shared = means of the per-class F1s (toy); confusion-based F1 = `per_class_f1`; draw-mean bootstrap (captures resampled within class, same resample for all draws) brackets the mean and collapses to [1, 1] for perfect predictions. Methods M0–M5 in `xroom.task3_methods` read labels only via `visible_labels`: sentinel test on real data (every non-support target label incl. all val set to `SENTINEL`) leaves predictions of all six methods unchanged in both directions; the only direct `meta["activity"]` read is the separate UB reference. Two full `--methods M0` runs (2 dirs × 4 K × 10 draws) byte-identical. Smoke `--methods M0 M1 --k 5 --draws 2`: scores in [0, 1], confusion rows = val counts per class (B 75 each; A 25, sit 24), support 10 / 15 captures. Suite 123 passed. |
 | U6 | U6 commit (D1 fixed at `2503cfd`) | Gate checks 1–3 pass: 40 episodes per (direction, method); M1 ≤ UB + 0.02 at every K; exclusive rises K1 → K20 for M0 and M1 in both directions. **Overall / exclusive / shared macro-F1 (mean of 10 draws):** A→B M1: K1 0.181/0.342/0.074; K5 0.272/0.532/0.098; K10 0.303/0.602/0.104; K20 0.335/0.664/0.115. A→B M0: K1 0.171/0.313/0.077; K5 0.222/0.459/0.064; K10 0.224/0.501/0.040; K20 0.245/0.552/0.041. B→A M1: K1 0.234/0.362/0.105; K5 0.287/0.500/0.073; K10 0.306/0.545/0.067; K20 0.336/0.592/0.081. B→A M0: K1 0.212/0.359/0.065; K5 0.236/0.462/0.011; K10 0.247/0.492/0.003; K20 0.270/0.540/0.000. UB (all target dev labels, not valid) A→B 0.901, B→A 0.692; CHANCE A→B 0.201, B→A 0.180. M1 beats M0 overall at every K in both directions. **Check 4 (as written) fails:** M0 shared is 0.00–0.08, not ≈ 0.2–0.35. Diagnosis (`scripts/task3_diagnostics.py`): (a) source prototypes classify source val at 0.625 (A, 6-class) / 0.893 (B, 5-class), so labels and prototypes work; (b) like-for-like with the Task 2 preview (3-class sit/stand/walk, source prototypes → target) M0 0.155 / 0.135, M1 0.114 / 0.231: below chance (0.333), consistent with Task 2 (0.226 / 0.228, linear probe); (c) in the 5/6-class episodes most target sit/stand/walk windows are absorbed by the same-room target-only prototypes at K = 5 (M0 56% A→B, 94% B→A; M1 24% / 60%), which is why shared F1 is below the 3-class value. No bug; check 4 compared different quantities (see Decisions log). D1 unchanged since U1 (`git diff 2503cfd -- configs/task3.yaml` empty). |
 | U7 | U7 commit | Pooled val of both rooms (524 windows); strict router accuracy 1.0000, 0 misrouted. Oracle-routing target macro-F1 equals the U6 M1 overall score for every draw, K and direction. Predicted − oracle = 0.000 for target and pooled macro-F1 at every K (saved in `routing/summary.json`). Pooled 8-activity macro-F1 (oracle = predicted): AtoB K1 0.429, K5 0.484, K10 0.504, K20 0.523; BtoA K1 0.631, K5 0.688, K10 0.704, K20 0.725. Activity-tuned router not used (no stress test needed at 1.000). New sentinel test: the source model (`predict_source`) never sees target labels. Suite 125 passed. |
-| U8 | | takeaways: |
+| U8 | U8 commit | Gate: 24 rows (2 directions × default ladder M0–M6 + UB / CHANCE / SHUF, + M1 on handcrafted and random_init_s0), each 4 K × 10 draws; SHUF exclusive 0.198–0.344 ≤ 1/n + 0.1 (0.600 A→B, 0.433 B→A); M1 summary byte-identical to U6 after re-running; tables `ablations_all.csv`, `ablations_K5.csv`. **Takeaways (overall macro-F1, mean of 10 draws):** (1) per-room embedding normalization helps: M1 > M0 at every K (K20 A→B 0.335 vs 0.245, B→A 0.336 vs 0.270); (2) **logistic regression on the same features (M5) is the strongest method** and the gap grows with K (K20 A→B 0.438, B→A 0.409); it beats M1 in 7 of 8 (direction, K) cells — **ablation, not selected (choosing it would use target validation labels); D1 stays M1**; (3) CORAL (M2) helps only B→A (K20 0.351) and hurts A→B; AdaBN (M3), prototype refinement (M4) and input-level per-room normalization (M6) do not help and mostly hurt (M4 A→B K20 0.210, shared F1 ≈ 0: refinement pulls target sit/stand/walk into the target-only clusters); (4) feature source: the Task 2 encoder beats hand-crafted features at every K in both directions (K20 A→B 0.335 vs 0.211); the random-init encoder is level with it in A→B at K ≤ 5 (K1 0.284 vs 0.181) but behind at K ≥ 10 and in B→A; (5) **contiguous Room B check** (A→B, M1, support and val not adjacent): exclusive drops -0.124 / -0.128 / -0.107 / -0.136 at K = 1/5/10/20 (K20 0.664 → 0.528; overall 0.335 → 0.259): the official Room B-as-target numbers are optimistic because support captures neighbour validation captures in the original recordings. |
 | U9 | | interpretation: |
 | U10 | | |

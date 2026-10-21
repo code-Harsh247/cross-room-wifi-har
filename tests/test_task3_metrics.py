@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 from sklearn.metrics import f1_score
 
@@ -74,7 +75,8 @@ def _real():
     _, meta = load_windows(CFG)
     rooms = meta["room"].to_numpy()[:, None]
     feats = {"base": np.load(emb / "default.npy"),
-             "adabn": np.where(rooms == "A", np.load(emb / "adabn_A.npy"), np.load(emb / "adabn_B.npy"))}
+             "adabn": np.where(rooms == "A", np.load(emb / "adabn_A.npy"), np.load(emb / "adabn_B.npy")),
+             "inputnorm": np.where(rooms == "A", np.load(emb / "inputnorm_A.npy"), np.load(emb / "inputnorm_B.npy"))}
     return meta, feats
 
 
@@ -99,7 +101,7 @@ def test_methods_cannot_see_hidden_labels(direction):
 def test_methods_are_deterministic():
     meta, feats = _real()
     support = sample_support(P_AB, meta, 1, 2)
-    for method in METHODS + ("UB", "CHANCE"):
+    for method in METHODS + ("UB", "CHANCE", "SHUF"):
         a = predict(method, feats, meta, P_AB, support, CFG, seed=2)
         b = predict(method, feats, meta, P_AB, support, CFG, seed=2)
         assert np.array_equal(a, b), method
@@ -120,3 +122,41 @@ def test_source_model_sees_no_target_labels(direction):
     clean = predict_source(feats, meta, p, CFG)
     assert np.array_equal(clean, predict_source(feats, poisoned, p, CFG))
     assert len(clean) == p.masks(meta)["source_val"].sum() and set(clean) <= set(p.source_labels)
+
+
+# ---------- U8: controls and M6 ----------
+
+from xroom.adapt import room_input_stats  # noqa: E402
+from xroom.task3_methods import _shuffle_support  # noqa: E402
+
+
+def test_shuffled_support_permutes_capture_labels():
+    meta, _ = _real()
+    p = Protocol.from_config(CFG, "BtoA")
+    support = sample_support(p, meta, 10, 0)
+    rows = meta["capture_id"].isin(support).to_numpy()
+    lab = np.where(rows, meta["activity"].to_numpy(dtype=object), None)
+    out = _shuffle_support(lab, meta, rows, seed=0)
+    caps = meta.loc[rows, "capture_id"]
+    per_cap = pd.Series(out[rows], index=caps.index).groupby(caps).nunique()
+    assert (per_cap == 1).all()  # one label per capture
+    assert sorted(out[rows]) == sorted(lab[rows])  # same label multiset
+    assert (out[rows] != lab[rows]).any()  # actually shuffled
+    assert np.array_equal(out, _shuffle_support(lab, meta, rows, seed=0))  # deterministic
+    assert (out[~rows] == None).all()  # noqa: E711  other rows untouched
+
+
+def test_room_input_stats_use_room_dev_only():
+    meta, _ = _real()
+    from xroom.dataset import load_windows
+    from xroom.encoder import load_encoder
+    x, _ = load_windows(CFG)
+    base = load_encoder(CFG, device="cpu").stats
+    st = room_input_stats(base, x, meta, "A")
+    assert st.mean.shape == base.mean.shape and np.isfinite(st.std).all() and (st.std > 0).all()
+    assert (st.row, st.log, st.standardize) == (base.row, base.log, base.standardize)
+    x2 = np.array(x[:])  # change every validation window and every Room B window
+    change = ((meta["split"] == "val") | (meta["room"] == "B")).to_numpy()
+    x2[change] = (x2[change].astype(np.float32) * 1.7 + 5).astype(x2.dtype)
+    st2 = room_input_stats(base, x2, meta, "A")
+    assert np.array_equal(st.mean, st2.mean) and np.array_equal(st.std, st2.std)

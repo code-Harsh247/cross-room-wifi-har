@@ -13,7 +13,7 @@ import torch
 from torch import nn
 
 from .encoder import FrozenEncoder
-from .ssl_data import apply_norm
+from .ssl_data import NormStats, apply_norm, prepare
 
 
 def adabn(encoder: FrozenEncoder, x: np.ndarray, meta: pd.DataFrame, room: str, batch: int = 256) -> FrozenEncoder:
@@ -119,3 +119,27 @@ def refine_prototypes(protos: np.ndarray, unlabeled: np.ndarray, support: np.nda
         den = r.sum(0) + s_cnt
         p = _unit(num / np.maximum(den, 1e-12)[:, None])
     return p.astype(np.float32)
+
+
+# ---------- input-level per-room normalization (M6) ----------
+
+def room_input_stats(stats: NormStats, x: np.ndarray, meta: pd.DataFrame, room: str, chunk: int = 256) -> NormStats:
+    """M6: the encoder's input normalization re-fitted on one room's unlabelled **development**
+    windows: per-subcarrier mean and std of the (row-normalized) input over all rows of that
+    room's dev windows. Same flags and subcarriers as ``stats``."""
+    rows = np.where(((meta["room"] == room) & (meta["split"] == "dev")).to_numpy())[0]
+    if len(rows) == 0:
+        raise ValueError(f"no development windows for room {room!r}")
+    total = np.zeros(len(stats.data_sc))
+    total_sq = np.zeros(len(stats.data_sc))
+    n = 0
+    for i in range(0, len(rows), chunk):
+        d = prepare(np.asarray(x[rows[i : i + chunk]]), stats.data_sc, stats.row, stats.log).astype(np.float64)
+        d = d.reshape(-1, d.shape[-1])
+        total += d.sum(0)
+        total_sq += (d ** 2).sum(0)
+        n += len(d)
+    mean = total / n
+    std = np.sqrt(np.maximum(total_sq / n - mean ** 2, 0.0))
+    return NormStats(stats.data_sc, mean.astype(np.float32), np.maximum(std, 1e-6).astype(np.float32),
+                     stats.row, stats.log, stats.standardize)
