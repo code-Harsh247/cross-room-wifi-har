@@ -141,3 +141,64 @@ def test_guard_on_real_data(direction):
     tgt_seen = seen & (meta["room"] == p.target).to_numpy()
     assert set(meta.loc[tgt_seen, "capture_id"]) == set(support)
     assert seen.sum() == p.masks(meta)["source_dev"].sum() + meta["capture_id"].isin(support).sum()
+
+
+# ---------- support sampling (U2) ----------
+
+from xroom.fewshot import load_support, sample_support, support_pool, write_support_manifest  # noqa: E402
+
+
+@pytest.mark.parametrize("direction", ["AtoB", "BtoA"])
+def test_support_counts_nested_dev_only_deterministic(direction):
+    meta = _real_meta()
+    p = Protocol.from_config(CFG, direction)
+    caps = meta.drop_duplicates("capture_id").set_index("capture_id")
+    win_per_cap = 1 if p.target == "A" else 3
+    for seed in (0, 1):
+        prev = set()
+        for k in CFG["task3"]["k_values"]:
+            ids = sample_support(p, meta, k, seed)
+            sel = caps.loc[ids]
+            assert sel.groupby("activity").size().to_dict() == {a: k for a in p.target_only}  # K captures/class
+            assert (sel["split"] == "dev").all() and (sel["room"] == p.target).all()
+            assert meta["capture_id"].isin(ids).sum() == win_per_cap * k * len(p.target_only)  # windows
+            assert prev <= set(ids)  # nested
+            prev = set(ids)
+    assert sample_support(p, meta, 5, 3) == sample_support(p, meta, 5, 3)  # deterministic
+    assert sample_support(p, meta, 5, 3) != sample_support(p, meta, 5, 4)  # seeds differ
+
+
+@pytest.mark.parametrize("direction", ["AtoB", "BtoA"])
+def test_support_coverage_over_draws(direction):
+    meta = _real_meta()
+    p = Protocol.from_config(CFG, direction)
+    t3 = CFG["task3"]
+    kmax = max(t3["k_values"])
+    caps = meta.drop_duplicates("capture_id").set_index("capture_id")
+    used = {a: set() for a in p.target_only}
+    for seed in range(t3["seed_base"], t3["seed_base"] + t3["draws"]):
+        for cid in sample_support(p, meta, kmax, seed):
+            used[caps.loc[cid, "activity"]].add(cid)
+    assert all(len(u) >= 100 for u in used.values()), {a: len(u) for a, u in used.items()}
+
+
+def test_support_rejects_bad_k_and_pool_is_dev_only():
+    meta = toy_meta()
+    p = Protocol.from_config(CFG, "AtoB")
+    pool = support_pool(p, meta)
+    assert all(meta.set_index("capture_id").loc[ids, "split"].eq("dev").all() for ids in pool.values())
+    with pytest.raises(ValueError):
+        sample_support(p, meta, 0, 0)
+    with pytest.raises(ValueError):
+        sample_support(p, meta, 99, 0)  # more than the 4 dev captures per class in toy data
+
+
+def test_manifest_roundtrip(tmp_path):
+    meta = toy_meta()
+    p = Protocol.from_config(CFG, "BtoA")
+    path = tmp_path / "BtoA_seed7.json"
+    write_support_manifest(p, meta, [1, 2, 4], 7, path)
+    for k in (1, 2, 4):
+        assert sorted(load_support(path, k)) == sorted(sample_support(p, meta, k, 7))
+    with pytest.raises(ValueError):
+        load_support(path, 3)

@@ -26,7 +26,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | U0 | Sync + setup check | ✅ |
 | U1 | Config + protocol + access guard | ✅ |
-| U2 | Support sampling | ⬜ |
+| U2 | Support sampling | ✅ |
 | U3 | Embedding caches (+ AdaBN) | ⬜ |
 | U4 | Adaptation + classifiers | ⬜ |
 | U5 | Metrics + episode runner | ⬜ |
@@ -79,9 +79,9 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U2: Support sampling (PRD FR-2, D3)
-- [ ] `sample_support(meta, protocol, k, seed) -> list[capture_id]`: K captures per target-only class, from **target dev** only, deterministic, **nested** across K for a fixed seed (draw 20 once, take prefixes).
-- [ ] `scripts/task3_support.py` writes `outputs/task3/support/{AtoB,BtoA}_seed{r}.json` for r = 0..9.
-- [ ] Tests
+- [x] `sample_support(meta, protocol, k, seed) -> list[capture_id]`: K captures per target-only class, from **target dev** only, deterministic, **nested** across K for a fixed seed (draw 20 once, take prefixes).
+- [x] `scripts/task3_support.py` writes `outputs/task3/support/{AtoB,BtoA}_seed{r}.json` for r = 0..9.
+- [x] Tests
 
 🔒 **Gate U2**
 | Check | Pass if |
@@ -277,7 +277,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 |---|---|---|
 | U0 | `f2c1aee` | 4680 windows, 7 excluded captures (rebuild 54 s); 86 passed, 0 skipped; `embed(...)` → (8, 128); router `RoomClassifier` (strict, from `outputs/task1/router/`); torch 2.9.1+cu126, CUDA True |
 | U1 | U1 commit ("Add Task 3 config, protocol and label access guard (U1)") | D1 (`default_method: M1`) and every ablation hyperparameter (CORAL eps 1.0, AdaBN batch 256, refinement 10 iters / τ 0.1, logreg C 1.0) committed in `configs/task3.yaml` while `outputs/task3/` did not exist (no Task 3 result yet). 13 new tests: label sets both directions; masks partition rows; guard shows only source-dev + all windows of support captures (20 random supports per direction, toy data) and on real data; no val label visible; sentinel label in hidden target-dev and val rows never visible; invalid support (val, shared class, source room, unknown ID) raises. Config activity sets match the data. Suite 99 passed. Added `load_task3_config` to `xroom.config`. |
-| U2 | | |
+| U2 | U2 commit | 20 manifests (`outputs/task3/support/{AtoB,BtoA}_seed{0..9}.json`), byte-identical on re-run. Per class: K captures (B targets 3K windows, A targets K windows); all target dev; nested K=1 ⊂ 5 ⊂ 10 ⊂ 20; same seed identical, different seeds differ. Distinct captures used at K=20 over 10 draws (pool): empty 135 (242), lying 145 (326), fall 128 (177), sitdown 114 (155), standup 120 (155), all ≥ 100. Per-class generator = (seed, crc32(direction/class)). Suite 105 passed. |
 | U3 | | AdaBN within-room probe A / B: |
 | U5 | | |
 | U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |

@@ -12,10 +12,15 @@ the Task 3 rules do not allow. Masks for the unlabelled data come from ``Protoco
 """
 from __future__ import annotations
 
+import json
+import zlib
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from .catalog import natural_key
 
 DIRECTIONS = {"AtoB": ("A", "B"), "BtoA": ("B", "A")}
 
@@ -104,3 +109,71 @@ def visible_labels(protocol: Protocol, meta: pd.DataFrame, support_ids=()) -> pd
     out = pd.Series(pd.NA, index=meta.index, dtype="object", name="visible_activity")
     out[allowed] = meta.loc[allowed, "activity"]
     return out
+
+
+# ---------- support sampling (FR-2, D3) ----------
+
+def support_pool(protocol: Protocol, meta: pd.DataFrame) -> dict[str, list[str]]:
+    """Target-room development capture IDs per target-only activity, naturally sorted."""
+    tgt_dev = protocol.masks(meta)["target_dev"]
+    caps = meta[tgt_dev].drop_duplicates("capture_id")
+    return {act: sorted(caps.loc[caps["activity"] == act, "capture_id"], key=natural_key)
+            for act in protocol.target_only}
+
+
+def support_order(protocol: Protocol, meta: pd.DataFrame, seed: int) -> dict[str, list[str]]:
+    """A seeded random order of each target-only class's pool. The support for K is the first K
+    captures of each order, so supports are nested across K for a fixed seed. Each class has its
+    own generator (seed, stable hash of direction + class), so adding a class cannot reshuffle
+    the others."""
+    out = {}
+    for act, pool in support_pool(protocol, meta).items():
+        key = zlib.crc32(f"{protocol.direction}/{act}".encode())
+        rng = np.random.default_rng([seed, key])
+        out[act] = [pool[i] for i in rng.permutation(len(pool))]
+    return out
+
+
+def sample_support(protocol: Protocol, meta: pd.DataFrame, k: int, seed: int) -> list[str]:
+    """K support captures (not windows) per target-only class, from target dev only."""
+    if k < 1:
+        raise ValueError("k must be >= 1")
+    order = support_order(protocol, meta, seed)
+    short = {act: len(o) for act, o in order.items() if len(o) < k}
+    if short:
+        raise ValueError(f"not enough target dev captures for K={k}: {short}")
+    ids = [cid for act in protocol.target_only for cid in order[act][:k]]
+    check_support(protocol, meta, ids)
+    return ids
+
+
+def write_support_manifest(protocol: Protocol, meta: pd.DataFrame, k_values, seed: int, path: str | Path) -> dict:
+    """Save the nested supports of one (direction, seed) as JSON; returns the manifest."""
+    order = support_order(protocol, meta, seed)
+    kmax = max(k_values)
+    manifest = {
+        "direction": protocol.direction,
+        "seed": seed,
+        "k_values": list(k_values),
+        "description": "K support captures per target-only class (target dev only); nested: "
+                       "K=k uses the first k captures of each class list.",
+        "support": {act: order[act][:kmax] for act in protocol.target_only},
+    }
+    for k in k_values:  # validates every K before writing
+        sample_support(protocol, meta, k, seed)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
+
+
+def load_support(path: str | Path, k: int) -> list[str]:
+    """Support capture IDs for K from a saved manifest."""
+    manifest = json.loads(Path(path).read_text(encoding="utf-8"))
+    if k not in manifest["k_values"]:
+        raise ValueError(f"K={k} not in manifest {path} ({manifest['k_values']})")
+    return [cid for ids in manifest["support"].values() for cid in ids[:k]]
+
+
+def manifest_path(cfg: dict, direction: str, seed: int) -> Path:
+    return Path(cfg["paths"]["task3_dir"]) / "support" / f"{direction}_seed{seed}.json"
