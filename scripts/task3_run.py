@@ -27,10 +27,10 @@ sys.path.insert(0, str(ROOT / "src"))
 import numpy as np  # noqa: E402
 from threadpoolctl import threadpool_limits  # noqa: E402
 
-from xroom.config import load_task3_config  # noqa: E402
+from xroom.config import load_config, load_task3_config  # noqa: E402
 from xroom.dataset import load_windows  # noqa: E402
 from xroom.fewshot import Protocol, load_support, manifest_path  # noqa: E402
-from xroom.task3_methods import METHODS, REFERENCES, predict  # noqa: E402
+from xroom.task3_methods import METHODS, POSTHOC, REFERENCES, predict  # noqa: E402
 from xroom.task3_metrics import aggregate, episode_scores  # noqa: E402
 
 
@@ -53,10 +53,14 @@ def load_feats(emb_dir: Path, source: str, meta) -> dict[str, np.ndarray]:
 
 
 def main() -> None:
-    cfg = load_task3_config()
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", default=None, help="e.g. configs/task3_posthoc.yaml for M7-M9")
+    known, _ = pre.parse_known_args()
+    cfg = load_config(ROOT / known.config) if known.config else load_task3_config()
     t3 = cfg["task3"]
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--methods", nargs="+", default=[t3["default_method"]], choices=list(METHODS + REFERENCES))
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+                                 parents=[pre])
+    ap.add_argument("--methods", nargs="+", default=[t3["default_method"]], choices=list(METHODS + REFERENCES + POSTHOC))
     ap.add_argument("--sources", nargs="+", default=[t3["default_source"]])
     ap.add_argument("--directions", nargs="+", default=t3["directions"])
     ap.add_argument("--k", nargs="+", type=int, default=t3["k_values"])

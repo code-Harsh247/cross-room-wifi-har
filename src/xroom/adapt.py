@@ -143,3 +143,24 @@ def room_input_stats(stats: NormStats, x: np.ndarray, meta: pd.DataFrame, room: 
     std = np.sqrt(np.maximum(total_sq / n - mean ** 2, 0.0))
     return NormStats(stats.data_sc, mean.astype(np.float32), np.maximum(std, 1e-6).astype(np.float32),
                      stats.row, stats.log, stats.standardize)
+
+
+# ---------- balanced assignment (post-hoc idea 2) ----------
+
+def sinkhorn(scores: np.ndarray, iters: int = 100, row_marginal: np.ndarray | None = None,
+             col_marginal: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Entropic optimal transport in the log domain. ``scores`` (n, k) are log-kernel values
+    (e.g. similarity / temperature). Marginals default to uniform rows (1/n) and uniform
+    columns (1/k). Returns (plan (n, k), row potentials f (n,), column potentials g (k,)), with
+    plan = exp(scores + f[:, None] + g[None, :]). The column potentials act as per-class score
+    offsets that balance the class assignment."""
+    from scipy.special import logsumexp
+    s = np.asarray(scores, dtype=np.float64)
+    n, k = s.shape
+    log_r = np.log(np.full(n, 1.0 / n) if row_marginal is None else np.asarray(row_marginal, np.float64))
+    log_c = np.log(np.full(k, 1.0 / k) if col_marginal is None else np.asarray(col_marginal, np.float64))
+    f, g = np.zeros(n), np.zeros(k)
+    for _ in range(iters):
+        f = log_r - logsumexp(s + g[None, :], axis=1)
+        g = log_c - logsumexp(s + f[:, None], axis=0)
+    return np.exp(s + f[:, None] + g[None, :]), f, g

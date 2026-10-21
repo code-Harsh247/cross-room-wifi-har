@@ -160,3 +160,31 @@ def test_room_input_stats_use_room_dev_only():
     x2[change] = (x2[change].astype(np.float32) * 1.7 + 5).astype(x2.dtype)
     st2 = room_input_stats(base, x2, meta, "A")
     assert np.array_equal(st.mean, st2.mean) and np.array_equal(st.std, st2.std)
+
+
+# ---------- post-hoc idea 2 (M7-M9) ----------
+
+from xroom.config import PROJECT_ROOT, load_config  # noqa: E402
+from xroom.task3_methods import POSTHOC  # noqa: E402
+
+CFG_PH = load_config(PROJECT_ROOT / "configs" / "task3_posthoc.yaml")
+
+
+@pytest.mark.parametrize("direction", ["AtoB", "BtoA"])
+def test_posthoc_methods_cannot_see_hidden_labels(direction):
+    meta, feats = _real()
+    p = Protocol.from_config(CFG_PH, direction)
+    support = sample_support(p, meta, 5, 0)
+    poisoned = meta.copy()
+    poisoned.loc[(poisoned["room"] == p.target) & ~poisoned["capture_id"].isin(support), "activity"] = "SENTINEL"
+    for method in POSTHOC:
+        clean = predict(method, feats, meta, p, support, CFG_PH, seed=0)
+        assert np.array_equal(clean, predict(method, feats, poisoned, p, support, CFG_PH, seed=0)), method
+        assert np.array_equal(clean, predict(method, feats, meta, p, support, CFG_PH, seed=0)), method
+        assert set(clean) <= set(p.target_labels), method
+
+
+def test_posthoc_needs_its_config():
+    meta, feats = _real()
+    with pytest.raises(ValueError):
+        predict("M7", feats, meta, P_AB, sample_support(P_AB, meta, 1, 0), CFG, seed=0)

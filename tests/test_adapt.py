@@ -162,3 +162,27 @@ def test_adaptation_functions_take_no_activity_labels():
         assert not params & {"y", "labels", "activity", "y_train"}, fn.__name__
     assert set(inspect.signature(refine_prototypes).parameters) == {
         "protos", "unlabeled", "support", "support_idx", "iters", "temperature"}
+
+
+# ---------- post-hoc idea 2: Sinkhorn ----------
+
+from xroom.adapt import sinkhorn  # noqa: E402
+
+
+def test_sinkhorn_meets_marginals():
+    rng = np.random.default_rng(0)
+    s = rng.normal(size=(50, 4))
+    plan, f, g = sinkhorn(s, iters=200)
+    np.testing.assert_allclose(plan.sum(1), np.full(50, 1 / 50), atol=1e-6)
+    np.testing.assert_allclose(plan.sum(0), np.full(4, 1 / 4), atol=1e-6)
+    np.testing.assert_allclose(plan, np.exp(s + f[:, None] + g[None, :]))
+
+
+def test_sinkhorn_offsets_undo_class_collapse():
+    rng = np.random.default_rng(1)
+    s = rng.normal(scale=0.3, size=(300, 3))
+    s[:, 0] += 2.0  # every row prefers class 0 (collapse)
+    assert (s.argmax(1) == 0).mean() > 0.9
+    _, _, g = sinkhorn(s, iters=200)
+    counts = np.bincount((s + g).argmax(1), minlength=3) / 300
+    assert np.all(np.abs(counts - 1 / 3) < 0.1)  # balanced after the class offsets

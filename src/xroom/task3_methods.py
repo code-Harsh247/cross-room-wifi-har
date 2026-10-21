@@ -12,11 +12,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .adapt import coral_apply, coral_fit, per_room_standardize, refine_prototypes
+from .adapt import coral_apply, coral_fit, per_room_standardize, refine_prototypes, sinkhorn
 from .fewshot import Protocol, logreg_classifier, nearest_centroid, prototypes, visible_labels
 
 METHODS = ("M0", "M1", "M2", "M3", "M4", "M5", "M6")
 REFERENCES = ("UB", "CHANCE", "SHUF")
+POSTHOC = ("M7", "M8", "M9")  # idea 2, configs/task3_posthoc.yaml; post-hoc ablations only
 
 
 def _features(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame) -> np.ndarray:
@@ -49,6 +50,8 @@ def predict(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame, proto
     shuffle = method == "SHUF"
     if shuffle:
         method = "M1"
+    if method in POSTHOC:
+        return _predict_balanced(method, feats, meta, protocol, support_ids, cfg, seed)
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}")
 
@@ -79,6 +82,60 @@ def predict(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame, proto
                                    np.array([index[c] for c in lab[sup_rows]]),
                                    iters=t3["refine"]["iters"], temperature=t3["refine"]["temperature"])
     return nearest_centroid(f[tv], classes, protos, t3["distance"])
+
+
+def _cosine(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a = a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-12)
+    b = b / np.maximum(np.linalg.norm(b, axis=1, keepdims=True), 1e-12)
+    return a @ b.T
+
+
+def _predict_balanced(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame, protocol: Protocol,
+                      support_ids, cfg: dict, seed: int) -> np.ndarray:
+    """Post-hoc idea 2: balance the class assignment on unlabelled target dev windows with
+    Sinkhorn (uniform class marginals), then predict target val."""
+    if "posthoc" not in cfg:
+        raise ValueError("post-hoc methods need configs/task3_posthoc.yaml (cfg['posthoc'])")
+    bal = cfg["posthoc"]["balance"]
+    if bal["marginal"] != "uniform":
+        raise ValueError("only uniform class marginals are pre-registered")
+    t3 = cfg["task3"]
+    m = protocol.masks(meta)
+    tv, td = m["target_val"], m["target_dev"]
+    vis = visible_labels(protocol, meta, support_ids)  # the only label source
+    known = vis.notna().to_numpy()
+    lab = np.where(known, vis.to_numpy(dtype=object), None)
+    src_rows = m["source_dev"] & known & np.isin(lab, protocol.shared)
+    sup_rows = td & known
+    proto_lab = np.where(src_rows | sup_rows, lab, None)
+    f = _features("M1", feats, meta)
+
+    if method == "M9":
+        train = src_rows | sup_rows
+        clf = logreg_classifier(f[train], proto_lab[train], c=t3["logreg_c"], seed=seed)
+        classes = np.asarray(clf.classes_, dtype=object)
+        _, _, g = sinkhorn(clf.predict_log_proba(f[td]), iters=bal["iters"])
+        return classes[np.argmax(clf.predict_log_proba(f[tv]) + g[None, :], axis=1)]
+
+    classes, protos = prototypes(f, proto_lab, classes=protocol.target_labels)
+    classes = np.asarray(classes, dtype=object)
+    tau = bal["temperature"]
+    if method == "M7":
+        _, _, g = sinkhorn(_cosine(f[td], protos) / tau, iters=bal["iters"])
+        return classes[np.argmax(_cosine(f[tv], protos) / tau + g[None, :], axis=1)]
+
+    # M8: transport-weighted means of unlabelled target dev + pinned support windows
+    unl = td & ~sup_rows
+    plan, _, _ = sinkhorn(_cosine(f[unl], protos) / tau, iters=bal["iters"])
+    soft = plan * unl.sum()  # each unlabelled row's assignment sums to 1
+    index = {c: i for i, c in enumerate(classes)}
+    s_idx = np.array([index[c] for c in lab[sup_rows]])
+    num = soft.T @ f[unl].astype(np.float64)
+    den = soft.sum(0)
+    np.add.at(num, s_idx, f[sup_rows].astype(np.float64))
+    den = den + np.bincount(s_idx, minlength=len(classes))
+    new = (num / np.maximum(den, 1e-12)[:, None]).astype(np.float32)
+    return nearest_centroid(f[tv], classes, new, t3["distance"])
 
 
 def _shuffle_support(lab: np.ndarray, meta: pd.DataFrame, sup_rows: np.ndarray, seed: int) -> np.ndarray:

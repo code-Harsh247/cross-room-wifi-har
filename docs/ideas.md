@@ -60,11 +60,32 @@
 - **Expected:** a direct boost to macro-F1 by stopping class collapse. It does not fix swapped identities on its own.
 - **Assumption to state:** target classes are roughly equally frequent. That is a prior, not a label. It holds in our data by design, and the report must say so.
 - **Cost:** about ½ day. **Risk:** medium. **Rules:** ✅ unlabelled target dev only.
+- **Result (2026-10-21; settings pre-registered in `configs/task3_posthoc.yaml` before running; methods in `xroom.task3_methods`; run with `python scripts/task3_run.py --config configs/task3_posthoc.yaml --methods M7 M8 M9`): ✅ M9 is the best Task 3 method so far (post-hoc ablation).** Three variants:
+  - **M7:** M1 + class offsets learned by Sinkhorn on target dev.
+  - **M8:** balanced re-estimated prototypes.
+  - **M9:** M5 (logistic regression) + Sinkhorn class offsets.
+
+  | Overall macro-F1 (10 draws) | M1 default | M5 | M7 | M8 | **M9** |
+  |---|---|---|---|---|---|
+  | A→B K=1 / 5 / 10 / 20 | 0.181 / 0.272 / 0.303 / 0.335 | 0.191 / 0.344 / 0.411 / 0.438 | 0.181 / 0.272 / 0.299 / 0.330 | 0.173 / 0.243 / 0.275 / 0.300 | **0.314 / 0.398 / 0.472 / 0.492** |
+  | B→A K=1 / 5 / 10 / 20 | 0.234 / 0.287 / 0.306 / 0.336 | 0.214 / 0.338 / 0.376 / 0.409 | 0.250 / 0.324 / 0.345 / 0.390 | 0.228 / 0.279 / 0.285 / 0.329 | **0.241 / 0.360 / 0.396 / 0.439** |
+
+  - **Consistent:**
+    - M9 beats M5 in 39 of 40 paired draws in A→B and 30 of 40 in B→A;
+    - M9 beats M1 in 40 of 40 (A→B) and 36 of 40 (B→A).
+  - **Shared classes:** A→B shared F1 rises from 0.115 (M1, K = 20) to 0.317.
+  - **Where the gain comes from (K = 5, per-class F1):**
+    - Balancing spreads predictions over all classes. M5 A→B puts 57% of target val windows into "sit"; M9 puts 29%.
+    - **Sit genuinely transfers A→B** (F1 0.52 → 0.61).
+    - Stand and walk rise only to ≈ 0.14, about what a balanced random assignment gives per class. Part of the gain is fewer collapsed errors, not new recognition.
+  - **M7** helps only in B→A; **M8** (re-estimated prototypes) hurts in both directions.
+  - **Status:** post-hoc ablation. It cannot replace the pre-registered default M1 (D1), because it was designed after seeing U6–U8. It assumes roughly equal target class frequencies (true by design in this data; stated as a prior).
 
 ### 3. Combine ideas 1 + 2
 - **Idea:** motion features fix *which* cluster is walk; balanced assignment stops collapse. Together they target both failure modes.
 - **What we do:** run idea 2 on the embedding extended with idea 1's features.
 - **Cost:** small once 1 and 2 exist.
+- **Status:** dropped. Idea 1's motion signal is reversed between the rooms, so adding it would push the balanced assignment the wrong way.
 
 ### 4. Domain-adversarial alignment (DANN) on frozen embeddings
 - **Idea:** train a small network on top of the 128-d embeddings that classifies source activities well but **cannot tell the rooms apart**, so its features become room-invariant.
