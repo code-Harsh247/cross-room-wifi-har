@@ -24,7 +24,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 
 | # | Milestone | Status |
 |---|---|---|
-| U0 | Sync + setup check | ⬜ |
+| U0 | Sync + setup check | ✅ |
 | U1 | Config + protocol + access guard | ⬜ |
 | U2 | Support sampling | ⬜ |
 | U3 | Embedding caches (+ AdaBN) | ⬜ |
@@ -39,10 +39,10 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U0: Sync + setup check
-- [ ] `git pull --rebase` (Task 2 work, the committed encoder `models/task2_default/` and `results/`)
-- [ ] `python scripts/build_windows.py --rebuild` (if `data_cache/` is missing or stale)
-- [ ] Task 1 router present at `outputs/task1/router/room_router.joblib`. If missing, run `python scripts/task1_router_variants.py` (~75 s).
-- [ ] Skim the Task 2 report §1, §8 and §9 (cross-room transfer at chance; embedding organised by room).
+- [x] `git pull --rebase` (Task 2 work, the committed encoder `models/task2_default/` and `results/`)
+- [x] `python scripts/build_windows.py --rebuild` (if `data_cache/` is missing or stale)
+- [x] Task 1 router present at `outputs/task1/router/room_router.joblib`. If missing, run `python scripts/task1_router_variants.py` (~75 s).
+- [x] Skim the Task 2 report §1, §8 and §9 (cross-room transfer at chance; embedding organised by room).
 
 🔒 **Gate U0**
 | Check | Command | Pass if |
@@ -275,7 +275,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ## Results log (fill in at each gate)
 | Gate | Run / commit | Key numbers |
 |---|---|---|
-| U0 | | |
+| U0 | `f2c1aee` | 4680 windows, 7 excluded captures (rebuild 54 s); 86 passed, 0 skipped; `embed(...)` → (8, 128); router `RoomClassifier` (strict, from `outputs/task1/router/`); torch 2.9.1+cu126, CUDA True |
 | U1 | | D1 committed at: |
 | U2 | | |
 | U3 | | AdaBN within-room probe A / B: |
