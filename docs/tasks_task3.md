@@ -27,7 +27,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U0 | Sync + setup check | ✅ |
 | U1 | Config + protocol + access guard | ✅ |
 | U2 | Support sampling | ✅ |
-| U3 | Embedding caches (+ AdaBN) | ⬜ |
+| U3 | Embedding caches (+ AdaBN) | ✅ |
 | U4 | Adaptation + classifiers | ⬜ |
 | U5 | Metrics + episode runner | ⬜ |
 | U6 | Main results (default M1 vs M0, bounds) | ⬜ |
@@ -96,12 +96,12 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U3: Embedding caches + AdaBN (PRD FR-3, M3)
-- [ ] `scripts/task3_embed.py` caches (n = 4680, d) arrays in `outputs/task3/emb/`:
+- [x] `scripts/task3_embed.py` caches (n = 4680, d) arrays in `outputs/task3/emb/`:
   - `default.npy` (Task 2 default encoder);
   - `handcrafted.npy` (`xroom.probe.handcrafted_features`);
   - `random_init_s0.npy`.
-- [ ] `xroom.adapt.adabn(encoder, windows)`: copy the encoder and re-estimate BatchNorm running stats in train mode, no grad, cumulative average over **unlabelled dev windows of one room**. Produce `adabn_A.npy` / `adabn_B.npy` (each room's windows embedded with its own BN stats).
-- [ ] Tests
+- [x] `xroom.adapt.adabn(encoder, windows)`: copy the encoder and re-estimate BatchNorm running stats in train mode, no grad, cumulative average over **unlabelled dev windows of one room**. Produce `adabn_A.npy` / `adabn_B.npy` (each room's windows embedded with its own BN stats).
+- [x] Tests
 
 🔒 **Gate U3**
 | Check | Pass if |
@@ -270,6 +270,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-21 | D4: room-only prototypes = mean over all windows of the K support captures | Room B captures have 3 windows; K counts captures |
 | 2026-10-21 | D5: source-only classes excluded from the target label space | The target room's activity set is known |
 | 2026-10-21 | D6: headline uses oracle routing (target val windows); predicted routing reported alongside | The brief asks to compare with the true room; the router is 1.000 on val |
+| 2026-10-21 | AdaBN caches are full arrays per room (`adabn_A.npy`, `adabn_B.npy`, all 4680 rows each); M3 takes each window from its own room's array | Simple aligned indexing; the other room's rows are unused |
 | | | |
 
 ## Results log (fill in at each gate)
@@ -278,7 +279,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U0 | `f2c1aee` | 4680 windows, 7 excluded captures (rebuild 54 s); 86 passed, 0 skipped; `embed(...)` → (8, 128); router `RoomClassifier` (strict, from `outputs/task1/router/`); torch 2.9.1+cu126, CUDA True |
 | U1 | U1 commit ("Add Task 3 config, protocol and label access guard (U1)") | D1 (`default_method: M1`) and every ablation hyperparameter (CORAL eps 1.0, AdaBN batch 256, refinement 10 iters / τ 0.1, logreg C 1.0) committed in `configs/task3.yaml` while `outputs/task3/` did not exist (no Task 3 result yet). 13 new tests: label sets both directions; masks partition rows; guard shows only source-dev + all windows of support captures (20 random supports per direction, toy data) and on real data; no val label visible; sentinel label in hidden target-dev and val rows never visible; invalid support (val, shared class, source room, unknown ID) raises. Config activity sets match the data. Suite 99 passed. Added `load_task3_config` to `xroom.config`. |
 | U2 | U2 commit | 20 manifests (`outputs/task3/support/{AtoB,BtoA}_seed{0..9}.json`), byte-identical on re-run. Per class: K captures (B targets 3K windows, A targets K windows); all target dev; nested K=1 ⊂ 5 ⊂ 10 ⊂ 20; same seed identical, different seeds differ. Distinct captures used at K=20 over 10 draws (pool): empty 135 (242), lying 145 (326), fall 128 (177), sitdown 114 (155), standup 120 (155), all ≥ 100. Per-class generator = (seed, crc32(direction/class)). Suite 105 passed. |
-| U3 | | AdaBN within-room probe A / B: |
+| U3 | U3 commit | Caches (4680 rows, float32, finite) in 16 s: default 128-d, handcrafted 484-d, random_init_s0 128-d, adabn_A / adabn_B 128-d (each room's BN stats from its own dev windows; M3 uses room-matched rows). default.npy vs fresh `embed` max diff 0.0. AdaBN per-dim std min 0.37. Dev-holdout within-room probe default A 0.918 / B 0.987 vs AdaBN A 0.920 / B 0.979 (drop −0.003 / 0.008 ≤ 0.05). random_init_s0 dev-holdout reproduces the Task 2 saved value exactly (A 0.951 / B 0.804). (Default dev-holdout 0.918 / 0.987 vs Task 2 saved 0.913 / 0.985: same small cross-machine probe-tuning difference seen before; val numbers matched exactly.) Tests: original encoder untouched; only BN running stats change; val windows and other room's windows have no effect; deterministic; no-dev room raises; cache = encoder. Suite 111 passed. |
 | U5 | | |
 | U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |
 | U7 | | predicted − oracle: |
