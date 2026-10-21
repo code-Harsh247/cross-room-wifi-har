@@ -153,6 +153,42 @@ Overall macro-F1 at K = 20 (mean of 10 draws):
 4. **Self-training (M10) and slice averaging do not improve on M9.** Hand-crafted features are worse.
 5. **The feature source that works best depends on the direction** (random-init: B→A 0.535, A→B 0.327). Choosing a source per direction would be validation tuning, so this is reported as an observation only.
 
+## Batch 3 results: encoder ensembles and a fair SimCLR-vs-MAE comparison (2026-10-21, post-hoc)
+
+**Setup** (all pre-registered in `configs/task3_posthoc.yaml` before training or running):
+- **SimCLR seeds 1 and 2** were trained label-free with Task 2 defaults (`t3_simclr_s1/s2`). Seed 0 is the committed default encoder.
+- **M11 = probability ensemble:** one balanced logistic regression per encoder, equal-weight mean of their probabilities, then the M9 balanced class offsets. No member is chosen by a score.
+- **Commands:**
+  - `python scripts/task3_embed_posthoc.py`
+  - `python scripts/task3_run.py --config configs/task3_posthoc.yaml --methods M11 --sources ens_mae ens_simclr ens_all` (plus the batch-3 runs listed in the config)
+
+Overall macro-F1 (mean of 10 draws):
+
+| System | A→B K=1 / 5 / 10 / 20 | B→A K=1 / 5 / 10 / 20 |
+|---|---|---|
+| M1 default (pre-registered headline) | 0.181 / 0.272 / 0.303 / 0.335 | 0.234 / 0.287 / 0.306 / 0.336 |
+| M9 on the default encoder (batch 1 best) | 0.314 / 0.398 / 0.472 / 0.492 | 0.241 / 0.360 / 0.396 / 0.439 |
+| M9, SimCLR 3-seed mean | 0.261 / 0.355 / 0.421 / 0.445 | 0.246 / 0.372 / 0.408 / 0.458 |
+| M9, MAE 3-seed mean | 0.293 / 0.399 / 0.472 / 0.499 | 0.282 / 0.428 / 0.479 / 0.515 |
+| M11 ens_simclr | 0.264 / 0.360 / 0.420 / 0.441 | 0.252 / 0.365 / 0.406 / 0.460 |
+| M11 ens_all (3 SimCLR + 3 MAE) | 0.342 / 0.421 / 0.491 / 0.503 | 0.263 / 0.407 / 0.459 / 0.515 |
+| **M11 ens_mae (3 MAE seeds)** | **0.383 / 0.486 / 0.545 / 0.562** | **0.282 / 0.455 / 0.520 / 0.574** |
+| Concatenated MAE embeddings + M9 | 0.297 / 0.407 / 0.458 / 0.490 | 0.299 / 0.461 / 0.515 / 0.557 |
+
+### Findings
+1. **M11 ens_mae is the best Task 3 system** (post-hoc).
+   - It beats M9 on the default encoder in **40 / 40** paired draws in A→B (by +0.07 to +0.09) and **36 / 40** in B→A (by +0.04 to +0.14).
+   - It beats the pre-registered M1 in 79 / 80 draws, by +0.21 to +0.24 at K ≥ 5.
+   - In B→A it beats even the best single MAE seed (0.574 vs 0.555 at K = 20).
+2. **Ensembling removes the seed luck.** The MAE ensemble sits well above the 3-seed mean in both directions (+0.06 A→B at K = 20). Averaging probabilities works better than concatenating embeddings (0.562 vs 0.490 A→B).
+3. **Fair encoder comparison (3 seeds each): MAE beats SimCLR** by about +0.05 at K ≥ 10 in both directions. Ensembling helps MAE a lot but SimCLR not at all (0.441 vs 0.445 mean). Mixing all six encoders dilutes the MAE ensemble.
+4. **Which classes transfer now** (K = 20, per-class F1):
+   - A→B: sit 0.54, stand 0.44, walk 0.15;
+   - B→A: stand 0.48, sit 0.21, walk 0.20.
+
+   **Walk remains the hardest shared class.** This matches the reversed motion cue from idea 1.
+5. **Status:** post-hoc ablation (designed after U6–U8). The pre-registered default stays M1, and the report shows both. The SimCLR seed 0 encoder is Abhinav's committed one; seeds 1 and 2 were trained on this machine (PyTorch 2.9.1). MAE checkpoints are in `outputs/task2/t3_*` (not committed).
+
 ## Suggested order
 1. **Idea 1 diagnostic** (10 min). Decide whether motion features are worth building.
 2. **Ideas 1 + 2 (+ 3)** as one post-hoc experiment, with settings fixed in advance (~1 day).

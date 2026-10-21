@@ -56,17 +56,19 @@ def main() -> None:
         np.save(out / f"slice{rows}.npy", f)
         info[f"slice{rows}"] = {"shape": list(f.shape), "slice_rows": rows}
         print(f"  slice{rows:<3d} {f.shape}", flush=True)
-    for seed in cfg["posthoc"].get("mae_seeds", [cfg["posthoc"]["mae"]["seed"]]):
-        run = f"t3_mae_s{seed}"
+    runs = [("mae", s) for s in cfg["posthoc"].get("mae_seeds", [cfg["posthoc"]["mae"]["seed"]])]
+    runs += [("simclr", s) for s in cfg["posthoc"].get("simclr_seeds", [])]
+    for family, seed in runs:
+        run = f"t3_{family}_s{seed}"
         run_dir = Path(cfg["paths"]["encoder_dir"]) / run
         if (run_dir / "run.json").exists():  # run.json is written only when training has finished
             f = embed(load_encoder(cfg, run=run), x)
             assert np.isfinite(f).all()
-            np.save(out / f"mae_s{seed}.npy", f)
-            info[f"mae_s{seed}"] = {"shape": list(f.shape), "run": run}
-            print(f"  mae_s{seed}    {f.shape} (from {run_dir})", flush=True)
+            np.save(out / f"{family}_s{seed}.npy", f)
+            info[f"{family}_s{seed}"] = {"shape": list(f.shape), "run": run}
+            print(f"  {family}_s{seed}    {f.shape} (from {run_dir})", flush=True)
         else:
-            print(f"  mae_s{seed}    skipped: {run_dir} is missing or still training")
+            print(f"  {family}_s{seed}    skipped: {run_dir} is missing or still training")
     info_path.write_text(json.dumps(info, indent=2), encoding="utf-8")
 
 

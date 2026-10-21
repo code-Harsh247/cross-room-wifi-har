@@ -17,7 +17,7 @@ from .fewshot import Protocol, logreg_classifier, nearest_centroid, prototypes, 
 
 METHODS = ("M0", "M1", "M2", "M3", "M4", "M5", "M6")
 REFERENCES = ("UB", "CHANCE", "SHUF")
-POSTHOC = ("M7", "M8", "M9", "M10")  # ideas 2 + batch 2, configs/task3_posthoc.yaml; post-hoc ablations only
+POSTHOC = ("M7", "M8", "M9", "M10", "M11")  # ideas 2 + batch 2, configs/task3_posthoc.yaml; post-hoc ablations only
 
 
 def _features(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame) -> np.ndarray:
@@ -118,6 +118,8 @@ def _predict_balanced(method: str, feats: dict[str, np.ndarray], meta: pd.DataFr
         return classes[np.argmax(clf.predict_log_proba(f[tv]) + g[None, :], axis=1)]
     if method == "M10":
         return _balanced_self_training(f, proto_lab, src_rows | sup_rows, td & ~sup_rows, td, tv, cfg, seed)
+    if method == "M11":
+        return _probability_ensemble(feats, meta, proto_lab, src_rows | sup_rows, td, tv, cfg, seed)
 
     classes, protos = prototypes(f, proto_lab, classes=protocol.target_labels)
     classes = np.asarray(classes, dtype=object)
@@ -138,6 +140,29 @@ def _predict_balanced(method: str, feats: dict[str, np.ndarray], meta: pd.DataFr
     den = den + np.bincount(s_idx, minlength=len(classes))
     new = (num / np.maximum(den, 1e-12)[:, None]).astype(np.float32)
     return nearest_centroid(f[tv], classes, new, t3["distance"])
+
+
+def _probability_ensemble(feats, meta, proto_lab, train, td, tv, cfg, seed) -> np.ndarray:
+    """M11: one class-balanced logistic regression per ensemble member (M1 features of that
+    member), mean of the members' probabilities, then the M9 balanced class offsets estimated on
+    the unlabelled target dev windows. Every member has equal weight."""
+    if "members" not in feats:
+        raise ValueError("M11 needs an ensemble source (feats['members']; posthoc.ensembles)")
+    t3, bal = cfg["task3"], cfg["posthoc"]["balance"]
+    rooms, dev = meta["room"].to_numpy(), (meta["split"] == "dev").to_numpy()
+    p_td, p_tv, classes = 0.0, 0.0, None
+    for member in feats["members"]:
+        f = per_room_standardize(member, rooms, dev)
+        clf = logreg_classifier(f[train], proto_lab[train], c=t3["logreg_c"], seed=seed)
+        if classes is None:
+            classes = np.asarray(clf.classes_, dtype=object)
+        elif list(clf.classes_) != list(classes):
+            raise AssertionError("ensemble members disagree on the class order")
+        p_td = p_td + clf.predict_proba(f[td])
+        p_tv = p_tv + clf.predict_proba(f[tv])
+    n = len(feats["members"])
+    _, _, g = sinkhorn(np.log(p_td / n + 1e-12), iters=bal["iters"])
+    return classes[np.argmax(np.log(p_tv / n + 1e-12) + g[None, :], axis=1)]
 
 
 def _balanced_self_training(f, proto_lab, train, unl, td, tv, cfg, seed) -> np.ndarray:

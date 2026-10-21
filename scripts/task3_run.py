@@ -39,8 +39,12 @@ def dump(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, indent=1, sort_keys=True), encoding="utf-8")
 
 
-def load_feats(emb_dir: Path, source: str, meta) -> dict[str, np.ndarray]:
-    """Feature arrays for one source. ``a+b`` concatenates the caches of sources a and b."""
+def load_feats(emb_dir: Path, source: str, meta, ensembles: dict | None = None) -> dict[str, np.ndarray]:
+    """Feature arrays for one source. ``a+b`` concatenates the caches of sources a and b; a name
+    in ``ensembles`` (posthoc config) loads every member as ``feats['members']`` (for M11)."""
+    if ensembles and source in ensembles:
+        members = [load_feats(emb_dir, m, meta)["base"] for m in ensembles[source]]
+        return {"base": members[0], "members": members}
     parts = []
     for name in source.split("+"):
         path = emb_dir / f"{name}.npy"
@@ -82,7 +86,7 @@ def main() -> None:
             y_true = meta.loc[tv, "activity"].to_numpy(dtype=object)  # scoring only
             captures = meta.loc[tv, "capture_id"].to_numpy()
             for source in args.sources:
-                feats = load_feats(root / "emb", source, meta)
+                feats = load_feats(root / "emb", source, meta, cfg.get("posthoc", {}).get("ensembles"))
                 for method in args.methods:
                     if method in ("M3", "M6") and source != "default":
                         continue  # AdaBN / input-norm caches exist for the default encoder only

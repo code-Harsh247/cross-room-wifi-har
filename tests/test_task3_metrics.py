@@ -173,6 +173,7 @@ CFG_PH = load_config(PROJECT_ROOT / "configs" / "task3_posthoc.yaml")
 @pytest.mark.parametrize("direction", ["AtoB", "BtoA"])
 def test_posthoc_methods_cannot_see_hidden_labels(direction):
     meta, feats = _real()
+    feats = {**feats, "members": [feats["base"], feats["adabn"], feats["inputnorm"]]}  # for M11
     p = Protocol.from_config(CFG_PH, direction)
     support = sample_support(p, meta, 5, 0)
     poisoned = meta.copy()
@@ -188,3 +189,13 @@ def test_posthoc_needs_its_config():
     meta, feats = _real()
     with pytest.raises(ValueError):
         predict("M7", feats, meta, P_AB, sample_support(P_AB, meta, 1, 0), CFG, seed=0)
+
+
+def test_probability_ensemble_of_one_member_equals_m9():
+    meta, feats = _real()
+    support = sample_support(P_AB, meta, 5, 1)
+    one = {**feats, "members": [feats["base"]]}
+    assert np.array_equal(predict("M11", one, meta, P_AB, support, CFG_PH, seed=1),
+                          predict("M9", feats, meta, P_AB, support, CFG_PH, seed=1))
+    with pytest.raises(ValueError):
+        predict("M11", feats, meta, P_AB, support, CFG_PH, seed=1)  # no members
