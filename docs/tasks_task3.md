@@ -25,7 +25,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | # | Milestone | Status |
 |---|---|---|
 | U0 | Sync + setup check | ✅ |
-| U1 | Config + protocol + access guard | ⬜ |
+| U1 | Config + protocol + access guard | ✅ |
 | U2 | Support sampling | ⬜ |
 | U3 | Embedding caches (+ AdaBN) | ⬜ |
 | U4 | Adaptation + classifiers | ⬜ |
@@ -55,16 +55,16 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U1: Config + protocol + access guard (PRD FR-1, §4)
-- [ ] `configs/task3.yaml` (`base_config: task2.yaml`):
+- [x] `configs/task3.yaml` (`base_config: task2.yaml`):
   - `task3.k_values: [1, 5, 10, 20]`, `task3.draws: 10`, `task3.seed_base: 0`;
   - method list;
   - **default method `M1`** (decision D1), committed **now**, before any result exists;
   - output paths under `outputs/task3`.
-- [ ] `src/xroom/fewshot.py`:
-  - [ ] `Protocol(direction)`: source/target room, shared = {sit, stand, walk}, source-only and target-only activity sets, target label space;
-  - [ ] masks: source-dev, target-dev, target-val, source-val;
-  - [ ] `visible_labels(protocol, meta, support_ids) -> pd.Series` (the access guard): returns source-dev activity labels and support-capture labels only; every other label is NA.
-- [ ] `tests/test_fewshot.py` (protocol + guard)
+- [x] `src/xroom/fewshot.py`:
+  - [x] `Protocol(direction)`: source/target room, shared = {sit, stand, walk}, source-only and target-only activity sets, target label space;
+  - [x] masks: source-dev, target-dev, target-val, source-val;
+  - [x] `visible_labels(protocol, meta, support_ids) -> pd.Series` (the access guard): returns source-dev activity labels and support-capture labels only; every other label is NA.
+- [x] `tests/test_fewshot.py` (protocol + guard)
 
 🔒 **Gate U1**
 | Check | How | Pass if |
@@ -276,7 +276,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | Gate | Run / commit | Key numbers |
 |---|---|---|
 | U0 | `f2c1aee` | 4680 windows, 7 excluded captures (rebuild 54 s); 86 passed, 0 skipped; `embed(...)` → (8, 128); router `RoomClassifier` (strict, from `outputs/task1/router/`); torch 2.9.1+cu126, CUDA True |
-| U1 | | D1 committed at: |
+| U1 | U1 commit ("Add Task 3 config, protocol and label access guard (U1)") | D1 (`default_method: M1`) and every ablation hyperparameter (CORAL eps 1.0, AdaBN batch 256, refinement 10 iters / τ 0.1, logreg C 1.0) committed in `configs/task3.yaml` while `outputs/task3/` did not exist (no Task 3 result yet). 13 new tests: label sets both directions; masks partition rows; guard shows only source-dev + all windows of support captures (20 random supports per direction, toy data) and on real data; no val label visible; sentinel label in hidden target-dev and val rows never visible; invalid support (val, shared class, source room, unknown ID) raises. Config activity sets match the data. Suite 99 passed. Added `load_task3_config` to `xroom.config`. |
 | U2 | | |
 | U3 | | AdaBN within-room probe A / B: |
 | U5 | | |

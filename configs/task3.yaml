@@ -1,0 +1,46 @@
+# Task 3 settings: cross-room few-shot activity recognition.
+# Layered on task2.yaml (which layers on task1.yaml): windows, splits, the Task 2 default
+# encoder and the Task 1 router are used exactly as published.
+#
+# PRE-REGISTERED (decision D1, 2026-10-21): every setting below, including the default
+# method and the hyperparameters of the ablation methods, was fixed BEFORE any Task 3
+# result existed. Do not change them after seeing target-room scores; doing so would
+# select with target labels beyond the K support captures.
+base_config: task2.yaml
+
+paths:
+  task3_dir: outputs/task3          # embeddings, support manifests, episode results (git-ignored)
+
+task3:
+  directions: [AtoB, BtoA]          # source -> target
+  shared: [sit, stand, walk]        # activities in both rooms; never labelled in the target
+  activities:                       # each room's full activity set (the target label space is known)
+    A: [fall, sit, sitdown, stand, standup, walk]
+    B: [empty, lying, sit, stand, walk]
+
+  k_values: [1, 5, 10, 20]          # support captures per target-only class (K counts captures)
+  draws: 10                         # support draws per (direction, K); seeds seed_base .. seed_base+draws-1
+  seed_base: 0                      # nested support: for one seed, K=1 ⊂ K=5 ⊂ K=10 ⊂ K=20
+
+  default_method: M1                # D1: per-room embedding standardization + nearest centroid
+  default_source: default           # features: the Task 2 label-clean default encoder
+  distance: cosine                  # nearest-centroid metric
+
+  methods:                          # see docs/PRD_Task3_Few_Shot_Cross_Room.md §6
+    M0: no adaptation, nearest centroid (source prototypes for shared, support prototypes for target-only)
+    M1: per-room embedding standardization (unlabelled dev stats per room) + nearest centroid
+    M2: M1 + CORAL (source re-coloured with target dev covariance)
+    M3: AdaBN (encoder BatchNorm stats re-estimated per room on unlabelled dev) + M1
+    M4: M1 + transductive prototype refinement on unlabelled target dev (soft k-means)
+    M5: M1 features + class-balanced logistic regression on source labels + support
+    M6: input-level per-room normalization (encoder NormStats re-fitted per room on unlabelled dev) + M1
+  sources: [default, handcrafted, random_init_s0]   # feature sources for the ablation (M1)
+
+  # Ablation hyperparameters, fixed in advance (no tuning on target labels).
+  coral_eps: 1.0                    # ridge added to covariances before whitening / colouring
+  adabn_batch: 256                  # windows per forward pass when re-estimating BatchNorm stats
+  refine:
+    iters: 10                       # soft k-means iterations
+    temperature: 0.1                # softmax temperature on cosine similarity
+  logreg_c: 1.0                     # M5 inverse regularization (not tuned)
+  bootstrap_reps: 1000              # capture-level bootstrap of the mean over draws

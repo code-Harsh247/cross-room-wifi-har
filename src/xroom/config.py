@@ -12,6 +12,7 @@ DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "task1.yaml"
 
 
 TASK2_CONFIG = PROJECT_ROOT / "configs" / "task2.yaml"
+TASK3_CONFIG = PROJECT_ROOT / "configs" / "task3.yaml"
 
 
 def load_config(path: str | Path = DEFAULT_CONFIG) -> dict[str, Any]:
@@ -37,6 +38,11 @@ def load_config(path: str | Path = DEFAULT_CONFIG) -> dict[str, Any]:
 
 def load_task2_config(path: str | Path = TASK2_CONFIG) -> dict[str, Any]:
     """Task 1 data settings + Task 2 sections (``configs/task2.yaml``)."""
+    return load_config(path)
+
+
+def load_task3_config(path: str | Path = TASK3_CONFIG) -> dict[str, Any]:
+    """Task 1 + Task 2 settings + Task 3 sections (``configs/task3.yaml``)."""
     return load_config(path)
 
 
