@@ -86,7 +86,9 @@ def main() -> None:
             y_true = meta.loc[tv, "activity"].to_numpy(dtype=object)  # scoring only
             captures = meta.loc[tv, "capture_id"].to_numpy()
             for source in args.sources:
-                feats = load_feats(root / "emb", source, meta, cfg.get("posthoc", {}).get("ensembles"))
+                ph = cfg.get("posthoc", {})
+                ensembles = {**ph.get("ensembles", {}), **ph.get("ensembles_batch4", {})}
+                feats = load_feats(root / "emb", source, meta, ensembles)
                 for method in args.methods:
                     if method in ("M3", "M6") and source != "default":
                         continue  # AdaBN / input-norm caches exist for the default encoder only

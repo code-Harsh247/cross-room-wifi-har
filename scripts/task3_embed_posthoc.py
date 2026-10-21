@@ -57,6 +57,7 @@ def main() -> None:
         info[f"slice{rows}"] = {"shape": list(f.shape), "slice_rows": rows}
         print(f"  slice{rows:<3d} {f.shape}", flush=True)
     runs = [("mae", s) for s in cfg["posthoc"].get("mae_seeds", [cfg["posthoc"]["mae"]["seed"]])]
+    runs += [("mae", s) for s in cfg["posthoc"].get("mae_seeds_batch4", [])]
     runs += [("simclr", s) for s in cfg["posthoc"].get("simclr_seeds", [])]
     for family, seed in runs:
         run = f"t3_{family}_s{seed}"

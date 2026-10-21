@@ -56,3 +56,14 @@ posthoc:
     - {methods: [M1, M9], sources: [simclr_s1, simclr_s2]}
     - {methods: [M11], sources: [ens_mae, ens_simclr, ens_all]}
     - {methods: [M9], sources: [mae_s0+mae_s1+mae_s2, default+simclr_s1+simclr_s2]}
+
+  # ---- batch 4 (fixed 2026-10-22 after batch 3, BEFORE training / running any of these) ----
+  # Bigger MAE ensemble: two more MAE seeds (same command and Task 2 defaults as seeds 0-2,
+  # label-free checkpoint selection). The ensemble size (5) is fixed here; no subset of seeds is
+  # chosen by a score. ens_mae (3 seeds) stays as it was for comparison.
+  mae_seeds_batch4: [3, 4]
+  ensembles_batch4:
+    ens_mae5: [mae_s0, mae_s1, mae_s2, mae_s3, mae_s4]
+  batch4_runs:
+    - {methods: [M1, M9], sources: [mae_s3, mae_s4]}
+    - {methods: [M11], sources: [ens_mae5]}
