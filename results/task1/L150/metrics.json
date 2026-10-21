@@ -1,0 +1,295 @@
+{
+  "window_length": 150,
+  "selected": {
+    "variant": "row",
+    "C": 1000.0
+  },
+  "validation": {
+    "all_activities": {
+      "n_windows": 524,
+      "accuracy": 1.0,
+      "recall_A": 1.0,
+      "recall_B": 1.0,
+      "balanced_accuracy": 1.0,
+      "log_loss": 9.400861745234579e-05,
+      "confusion_matrix(rows=true A,B; cols=pred A,B)": [
+        [
+          149,
+          0
+        ],
+        [
+          0,
+          375
+        ]
+      ]
+    },
+    "shared_activities_sit_stand_walk": {
+      "n_windows": 299,
+      "accuracy": 1.0,
+      "recall_A": 1.0,
+      "recall_B": 1.0,
+      "balanced_accuracy": 1.0,
+      "log_loss": 0.00010658651444828138,
+      "confusion_matrix(rows=true A,B; cols=pred A,B)": [
+        [
+          74,
+          0
+        ],
+        [
+          0,
+          225
+        ]
+      ]
+    },
+    "capture_level": {
+      "n_windows": 274,
+      "accuracy": 1.0,
+      "recall_A": 1.0,
+      "recall_B": 1.0,
+      "balanced_accuracy": 1.0,
+      "log_loss": 7.819854363333434e-05,
+      "confusion_matrix(rows=true A,B; cols=pred A,B)": [
+        [
+          149,
+          0
+        ],
+        [
+          0,
+          125
+        ]
+      ]
+    },
+    "per_room_activity_accuracy": {
+      "A/fall": 1.0,
+      "A/sit": 1.0,
+      "A/sitdown": 1.0,
+      "A/stand": 1.0,
+      "A/standup": 1.0,
+      "A/walk": 1.0,
+      "B/empty": 1.0,
+      "B/lying": 1.0,
+      "B/sit": 1.0,
+      "B/stand": 1.0,
+      "B/walk": 1.0
+    }
+  },
+  "controls": {
+    "format_only": {
+      "all_activities": {
+        "n_windows": 524,
+        "accuracy": 1.0,
+        "recall_A": 1.0,
+        "recall_B": 1.0,
+        "balanced_accuracy": 1.0,
+        "log_loss": 0.00040795825878221195,
+        "confusion_matrix(rows=true A,B; cols=pred A,B)": [
+          [
+            149,
+            0
+          ],
+          [
+            0,
+            375
+          ]
+        ]
+      },
+      "shared_activities_sit_stand_walk": {
+        "n_windows": 299,
+        "accuracy": 1.0,
+        "recall_A": 1.0,
+        "recall_B": 1.0,
+        "balanced_accuracy": 1.0,
+        "log_loss": 0.0005801749393241883,
+        "confusion_matrix(rows=true A,B; cols=pred A,B)": [
+          [
+            74,
+            0
+          ],
+          [
+            0,
+            225
+          ]
+        ]
+      }
+    },
+    "shuffled_labels": {
+      "val_balanced_accuracy_mean": 0.4377852348993289,
+      "val_balanced_accuracy_std": 0.0989862351055795,
+      "val_balanced_accuracy_runs": [
+        0.31327069351230424,
+        0.33538255033557046,
+        0.3239821029082774,
+        0.605682326621924,
+        0.3661834451901566,
+        0.40756152125279643,
+        0.4494765100671141,
+        0.4292975391498881,
+        0.48216554809843404,
+        0.4323847874720358,
+        0.5740581655480984,
+        0.5131006711409396,
+        0.2964474272930649,
+        0.37702908277404923,
+        0.49223266219239376,
+        0.42378523489932884,
+        0.29589261744966444,
+        0.4613422818791946,
+        0.5459686800894854,
+        0.6304608501118568
+      ]
+    },
+    "leave_activity_out": {
+      "train sit+stand -> test walk": {
+        "n_windows": 100,
+        "accuracy": 0.79,
+        "balanced_accuracy": 0.86,
+        "recall_A": 1.0,
+        "recall_B": 0.72
+      },
+      "train sit+stand+walk -> test room-only activities": {
+        "n_windows": 225,
+        "accuracy": 0.9066666666666666,
+        "balanced_accuracy": 0.9299999999999999,
+        "recall_A": 1.0,
+        "recall_B": 0.86
+      },
+      "train room-only activities -> test sit+stand+walk": {
+        "n_windows": 299,
+        "accuracy": 0.9832775919732442,
+        "balanced_accuracy": 0.9888888888888889,
+        "recall_A": 1.0,
+        "recall_B": 0.9777777777777777
+      }
+    }
+  },
+  "ablation_feature_variant": {
+    "none": {
+      "C": 1000.0,
+      "val_balanced_accuracy": 1.0,
+      "val_shared_balanced_accuracy": 1.0,
+      "val_log_loss": 0.0006174824084155262
+    },
+    "row": {
+      "C": 1000.0,
+      "val_balanced_accuracy": 1.0,
+      "val_shared_balanced_accuracy": 1.0,
+      "val_log_loss": 9.400861745234579e-05
+    },
+    "log": {
+      "C": 1.0,
+      "val_balanced_accuracy": 0.9926442953020134,
+      "val_shared_balanced_accuracy": 0.9977777777777778,
+      "val_log_loss": 0.01624665968120098
+    }
+  },
+  "robustness": {
+    "train_balanced_accuracy": 1.0,
+    "learning_curve_captures_per_room": {
+      "1": {
+        "mean": 0.5764733780760626,
+        "min": 0.3658702460850112,
+        "max": 0.8463982102908277
+      },
+      "2": {
+        "mean": 0.6838299776286354,
+        "min": 0.3858702460850112,
+        "max": 0.8984876957494408
+      },
+      "5": {
+        "mean": 0.8056635346756152,
+        "min": 0.6435525727069351,
+        "max": 0.8928859060402685
+      },
+      "20": {
+        "mean": 0.9298326621923936,
+        "min": 0.8812885906040269,
+        "max": 0.9726442953020134
+      },
+      "50": {
+        "mean": 0.9716286353467563,
+        "min": 0.944,
+        "max": 0.9933333333333334
+      }
+    },
+    "nearest_centroid": {
+      "val_balanced_accuracy": 0.8788187919463087,
+      "centroid_distance": 3.476579427719116,
+      "median_distance_to_own_centroid_A": 3.3951053619384766,
+      "median_distance_to_own_centroid_B": 4.201099872589111
+    },
+    "edge_subcarriers": {
+      "n_edge_subcarriers": 32,
+      "edge_feature_share": 0.1322314049586777,
+      "edge_weight_share": 0.15020906925201416,
+      "top15_subcarriers": [
+        2,
+        11,
+        26,
+        39,
+        75,
+        80,
+        82,
+        87,
+        103,
+        120,
+        153,
+        160,
+        217,
+        245,
+        249
+      ],
+      "val_balanced_accuracy_without_edges": 1.0
+    },
+    "leave_one_day_out_room_A": {
+      "per_day": {
+        "2021-01-10": {
+          "n_windows": 230,
+          "recall_A": 0.9956521739130435,
+          "val_recall_B": 1.0
+        },
+        "2021-01-11": {
+          "n_windows": 132,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        },
+        "2021-01-14": {
+          "n_windows": 155,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        },
+        "2021-01-17": {
+          "n_windows": 200,
+          "recall_A": 0.98,
+          "val_recall_B": 1.0
+        },
+        "2021-01-21": {
+          "n_windows": 106,
+          "recall_A": 0.9528301886792453,
+          "val_recall_B": 1.0
+        },
+        "2021-01-27": {
+          "n_windows": 10,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        },
+        "2021-01-28": {
+          "n_windows": 55,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        },
+        "2021-01-31": {
+          "n_windows": 61,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        },
+        "2021-02-04": {
+          "n_windows": 128,
+          "recall_A": 1.0,
+          "val_recall_B": 1.0
+        }
+      },
+      "weighted_recall_A": 0.9907149489322191,
+      "worst_day_recall_A": 0.9528301886792453
+    }
+  }
+}

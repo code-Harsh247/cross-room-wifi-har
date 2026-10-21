@@ -98,8 +98,11 @@ def default_device() -> str:
 
 
 def load_encoder(cfg: dict, run: str = "default", device: str | None = None) -> FrozenEncoder:
-    """Load ``<paths.encoder_dir>/<run>`` (default: the label-clean default encoder)."""
-    run_dir = Path(cfg["paths"]["encoder_dir"]) / run
+    """Load the label-clean default encoder (``run="default"``: ``paths.default_encoder``, committed
+    to the repo) or any SSL run under ``<paths.encoder_dir>/<run>``."""
+    paths = cfg["paths"]
+    run_dir = Path(paths["default_encoder"]) if run == "default" and "default_encoder" in paths else \
+        Path(paths["encoder_dir"]) / run
     if not (run_dir / "encoder.pt").exists():
         raise FileNotFoundError(f"no encoder at {run_dir}; train it with scripts/task2_pretrain.py")
     device = device or default_device()

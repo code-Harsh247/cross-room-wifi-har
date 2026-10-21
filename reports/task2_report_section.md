@@ -191,11 +191,11 @@ All settings are in `configs/task2.yaml`. They were **fixed before any probe was
   from xroom.config import load_task2_config
   from xroom.encoder import load_encoder, embed
   cfg = load_task2_config()
-  enc = load_encoder(cfg)            # outputs/task2/default
+  enc = load_encoder(cfg)            # models/task2_default (committed)
   z = embed(enc, windows)            # raw (n, T, 256) amplitudes -> (n, 128); applies the saved dev normalization
   ```
   It is deterministic in eval mode, uses the GPU if available, and accepts any window length ≥ 32 rows.
-- **Default encoder (label-clean):** `simclr_s0`, trained with the default config. The seed (0) was fixed in advance, and the checkpoint was chosen by dev-holdout SSL loss (epoch 54). **No activity labels were used for its training or for choosing its settings**; see `outputs/task2/default/PROVENANCE.md`, written by `scripts/task2_publish_default.py`.
+- **Default encoder (label-clean):** `simclr_s0`, trained with the default config. The seed (0) was fixed in advance, and the checkpoint was chosen by dev-holdout SSL loss (epoch 54). **No activity labels were used for its training or for choosing its settings**; see `models/task2_default/PROVENANCE.md`, written by `scripts/task2_publish_default.py`. The encoder is committed (about 4 MB), so Task 3 uses exactly these weights on every machine.
 - **Label-tuned variants** were chosen or compared with development activity labels of both rooms: `abl_tau_0.5_s*`, `abl_method_mae_s*` and the other `abl_*` runs. Under the Task 3 rules they may be reported only as ablations, never as the Task 3 default. This is the same rule as the Task 1 strict router.
 - **What Task 3 should expect.**
   - Within-room prototypes should work well; Room B classes separate almost perfectly.

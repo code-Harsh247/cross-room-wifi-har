@@ -7,6 +7,7 @@ base_config: task1.yaml
 
 paths:
   encoder_dir: outputs/task2       # SSL runs (checkpoints), probe results, figures (git-ignored)
+  default_encoder: models/task2_default   # published label-clean default encoder (committed, ~4 MB)
 
 ssl_data:
   crop_min: 96                     # SSL crops: contiguous rows, length drawn per batch from [crop_min, crop_max]

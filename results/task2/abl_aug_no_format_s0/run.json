@@ -1,0 +1,12 @@
+{
+ "method": "simclr",
+ "seed": 0,
+ "git": "dc9601359074b7a7a001dbb9cbacc5167d537ed2",
+ "device": "cuda",
+ "runtime_s": 187.4,
+ "best_epoch": 54,
+ "selection": "lowest SSL loss on dev-holdout crops (label-free)",
+ "n_train_captures": 1603,
+ "n_holdout_captures": 401,
+ "n_excluded_captures": 0
+}

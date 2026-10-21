@@ -215,7 +215,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 
 ## T10: Task 3 hand-off API (PRD FR-10)
 - [x] `xroom.encoder.load_encoder(cfg, run="default")` and `embed(encoder, windows) -> np.ndarray (n, d)`: batched, GPU if available, applies the saved dev normalization, eval mode.
-- [x] Publish the **label-clean default encoder**: the default config (or selection by SSL holdout loss only). Write `outputs/task2/default/PROVENANCE.md` stating how it was chosen (`scripts/task2_publish_default.py`, which refuses runs not trained with the default config). Label-tuned variants get other names.
+- [x] Publish the **label-clean default encoder**: the default config (or selection by SSL holdout loss only). Write `models/task2_default/PROVENANCE.md` (committed with the encoder; was `outputs/task2/default/` until 2026-10-21) stating how it was chosen (`scripts/task2_publish_default.py`, which refuses runs not trained with the default config). Label-tuned variants get other names.
 - [x] Add `paths.encoder_dir` to the config.
 - [x] `tests/test_encoder_api.py`
 
@@ -275,6 +275,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-19 | PCA baseline averages every 2 rows before flattening (75 x 242 = 18,150 dims) | The full 36,300-dim matrix of 4,680 windows does not fit comfortably in 7 GB RAM |
 | 2026-10-19 | Shuffled-label control permutes labels between captures (not windows) | Keeps the capture-level structure; tested over 10 shuffle seeds on toy data, since one shuffle maps whole clusters and is high-variance |
 | 2026-10-19 | T7 Room A debugging uses dev-holdout probe scores only (`dev_holdout_scores`), never validation; any variant picked that way is label-tuned and gets its own name, while the default encoder stays the fixed config | Validation is for scoring only; Task 3 needs a label-clean default (PRD FR-10) |
+| 2026-10-21 | Default encoder committed to `models/task2_default/`; `load_encoder(cfg)` loads it from `paths.default_encoder` | Harsh could not run Task 3 without it (outputs/ is git-ignored), and a retrain on another PyTorch version would not reproduce the exact weights behind the Task 2 numbers |
 | 2026-10-19 | Label-tuned variant chosen by the highest 3-seed dev-holdout mean (τ = 0.5); MAE reported as a tied alternative, not promoted | Picking between two dev-holdout ties by their validation score would be validation tuning |
 | 2026-10-19 | Contiguous check pre-trains new encoders (`contig_s*`) without the contiguous block or its guard files; the probe trains on rows that are dev under both splits | Otherwise the SSL encoder has seen the test block (unlabelled), and official validation captures would enter probe training |
 | 2026-10-20 | Probe and ablation scripts set cuDNN deterministic mode; all probes re-run before the report | The first baseline run (before the one-thread BLAS fix) did not reproduce exactly; re-runs are now byte-identical |

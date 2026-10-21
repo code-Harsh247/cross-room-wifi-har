@@ -10,6 +10,7 @@ Three tasks:
 3. Few-shot activity transfer across rooms
 
 ## Where to start
+- **Reproducing results:** follow `README.md` (setup, data cache, Task 1 and Task 2 commands, expected numbers).
 - **Task 2:** read `docs/PRD_Task2_Self_Supervised_Encoder.md`, then follow `docs/tasks_task2.md` **one milestone at a time**.
   - A milestone is done only when its 🔒 gate passes.
   - Record gate numbers in its Results log.
@@ -23,6 +24,8 @@ Three tasks:
   - Task 1: `features`, `room_classifier`, `eval`, `router`
 - `scripts/`: one entry point per stage. `tests/`: pytest. `configs/task1.yaml`: all settings.
 - `reports/`: write-ups. `reports/figures/`: committed figures.
+- `models/task2_default/`: the committed Task 2 default encoder (`load_encoder(cfg)` loads it).
+- `results/`: committed snapshot of `outputs/` without checkpoints (metrics, tables, histories, figures). Refresh it with `python scripts/snapshot_results.py` and commit it with any report whose numbers changed.
 - `outputs/` and `data_cache/` are git-ignored, so copy final figures to `reports/figures/`.
 - **The raw dataset is committed** at the repo root:
   - `csidata/`: Room A, including `validation/`;
@@ -45,7 +48,7 @@ cfg = load_config()
 x, meta = load_windows(cfg)        # (4680, 150, 256) float16; meta: capture_id, room, activity, split, dev_fold, start
 table, seqs = load_sequences(cfg)  # full per-capture sequences (A: 150 rows, B: 500 rows)
 
-# Task 2 encoder for Task 3 (label-clean default; train + publish with scripts/task2_*.py, see the Task 2 report §10)
+# Task 2 encoder for Task 3 (label-clean default, committed in models/task2_default/; no training needed)
 from xroom.config import load_task2_config
 from xroom.encoder import load_encoder, embed
 z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
@@ -65,6 +68,7 @@ z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
 - **Raw data is read-only.** Never modify, rename, move or delete anything in `csidata/` or `csvdata/`. Known junk is already handled by the pipeline: the duplicate `stand65(1).pcap`, `.DS_Store` files, `model_plot_1.png`, truncated packets and short captures.
 - **Do not change Task 1 preprocessing defaults** in `configs/task1.yaml` (packet filter, resampling, null subcarriers, window length). Every reported Task 1 number depends on them. Put new settings in a new config (e.g. `configs/task2.yaml`).
 - **Every reported number must come from a committed script.** Never hand-edit results into a report. Rerun the script and copy from its saved output.
+- **Keep `README.md` reproducible.** Update it in the same commit whenever setup, commands, script names, expected outputs (counts, headline numbers, test count), runtimes or task status change. Someone with only the README must be able to rebuild every reported result.
 - **AI-use disclosure is required** by the brief, along with each member's contribution. When AI tools contribute to a milestone, note it for the project's AI-use and contribution disclosure.
 
 ## Working together (two people on `main`)
@@ -88,4 +92,5 @@ z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
   - imperative subject line;
   - **no AI attribution or `Co-Authored-By` lines** (`.claude/settings.json` disables them).
 - **Never commit** `data_cache/`, `outputs/` or model checkpoints. Large generated files belong in the git-ignored folders.
+  - **One exception:** the published Task 2 default encoder in `models/task2_default/` (~4 MB), written only by `scripts/task2_publish_default.py`. It is committed so Task 3 builds on the exact encoder behind the Task 2 numbers, on every machine. Do not add other checkpoints to `models/`.
 - **Windows + Git Bash:** backslashes in heredoc-generated Python can get mangled. Prefer writing files with the editor tools over shell heredocs.
