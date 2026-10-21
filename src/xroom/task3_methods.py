@@ -17,7 +17,7 @@ from .fewshot import Protocol, logreg_classifier, nearest_centroid, prototypes, 
 
 METHODS = ("M0", "M1", "M2", "M3", "M4", "M5", "M6")
 REFERENCES = ("UB", "CHANCE", "SHUF")
-POSTHOC = ("M7", "M8", "M9")  # idea 2, configs/task3_posthoc.yaml; post-hoc ablations only
+POSTHOC = ("M7", "M8", "M9", "M10")  # ideas 2 + batch 2, configs/task3_posthoc.yaml; post-hoc ablations only
 
 
 def _features(method: str, feats: dict[str, np.ndarray], meta: pd.DataFrame) -> np.ndarray:
@@ -116,6 +116,8 @@ def _predict_balanced(method: str, feats: dict[str, np.ndarray], meta: pd.DataFr
         classes = np.asarray(clf.classes_, dtype=object)
         _, _, g = sinkhorn(clf.predict_log_proba(f[td]), iters=bal["iters"])
         return classes[np.argmax(clf.predict_log_proba(f[tv]) + g[None, :], axis=1)]
+    if method == "M10":
+        return _balanced_self_training(f, proto_lab, src_rows | sup_rows, td & ~sup_rows, td, tv, cfg, seed)
 
     classes, protos = prototypes(f, proto_lab, classes=protocol.target_labels)
     classes = np.asarray(classes, dtype=object)
@@ -136,6 +138,36 @@ def _predict_balanced(method: str, feats: dict[str, np.ndarray], meta: pd.DataFr
     den = den + np.bincount(s_idx, minlength=len(classes))
     new = (num / np.maximum(den, 1e-12)[:, None]).astype(np.float32)
     return nearest_centroid(f[tv], classes, new, t3["distance"])
+
+
+def _balanced_self_training(f, proto_lab, train, unl, td, tv, cfg, seed) -> np.ndarray:
+    """M10: M9 + balanced self-training. Each round: fit the logistic regression, assign the
+    unlabelled target dev windows with Sinkhorn (uniform class marginals) on its log-probs, keep
+    the most confident ``keep_frac`` of each class's assigned windows as pseudo-labels, and refit
+    on source shared + support + pseudo-labelled windows. Finally predict target val with the
+    balanced class offsets of the final model. Deterministic."""
+    t3, bal, st = cfg["task3"], cfg["posthoc"]["balance"], cfg["posthoc"]["selftrain"]
+    x_tr, y_tr = f[train], proto_lab[train]
+    x_cur, y_cur = x_tr, y_tr
+    fu = f[unl]
+    for _ in range(st["rounds"]):
+        clf = logreg_classifier(x_cur, y_cur, c=t3["logreg_c"], seed=seed)
+        classes = np.asarray(clf.classes_, dtype=object)
+        plan, _, _ = sinkhorn(clf.predict_log_proba(fu), iters=bal["iters"])
+        assign = plan.argmax(1)
+        conf = plan.max(1) / plan.sum(1)
+        keep = np.zeros(len(fu), dtype=bool)
+        for c in range(len(classes)):
+            idx = np.where(assign == c)[0]
+            if len(idx):
+                n_keep = int(np.ceil(st["keep_frac"] * len(idx)))
+                keep[idx[np.argsort(-conf[idx], kind="stable")[:n_keep]]] = True
+        x_cur = np.concatenate([x_tr, fu[keep]])
+        y_cur = np.concatenate([y_tr, classes[assign[keep]]])
+    clf = logreg_classifier(x_cur, y_cur, c=t3["logreg_c"], seed=seed)
+    classes = np.asarray(clf.classes_, dtype=object)
+    _, _, g = sinkhorn(clf.predict_log_proba(f[td]), iters=bal["iters"])
+    return classes[np.argmax(clf.predict_log_proba(f[tv]) + g[None, :], axis=1)]
 
 
 def _shuffle_support(lab: np.ndarray, meta: pd.DataFrame, sup_rows: np.ndarray, seed: int) -> np.ndarray:

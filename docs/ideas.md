@@ -125,6 +125,34 @@
 
 ---
 
+## Batch 2 results (2026-10-21, post-hoc; settings pre-registered in `configs/task3_posthoc.yaml` before each run)
+
+Commands:
+- `python scripts/task3_embed_posthoc.py`
+- `python scripts/task3_run.py --config configs/task3_posthoc.yaml --methods M1 M9 M10 --sources <source>`
+
+Overall macro-F1 at K = 20 (mean of 10 draws):
+
+| Source | Method | A → B | B → A | Note |
+|---|---|---|---|---|
+| default (Task 2 SimCLR) | M1 (pre-registered default) | 0.335 | 0.336 | headline |
+| default | M9 (batch 1 best) | 0.492 | 0.439 | |
+| default | **M10** balanced self-training | 0.488 | 0.427 | ❌ no gain over M9 |
+| slice25 / slice50 | M9 | 0.481 / 0.483 | 0.449 / 0.438 | ❌ slice averaging: no gain (idea 7) |
+| handcrafted | M9 | 0.381 | 0.339 | ❌ worse (room-only F1 high in A→B, 0.85; shared ≈ 0.07) |
+| random_init_s0 | M9 | 0.327 | **0.535** | direction-dependent: best single B→A source, poor A→B |
+| default + random_init_s0 | M9 | 0.434 | 0.485 | compromise; neither direction best |
+| **MAE, 3 seeds (mean, min–max)** | **M9** | **0.499** (0.417–0.625) | **0.515** (0.476–0.555) | idea 6 |
+| MAE, 3 seeds | M10 | 0.485 (0.363–0.648) | 0.525 (0.470–0.563) | |
+| MAE, 3 seeds | M1 | 0.396 (0.352–0.425) | 0.328 (0.313–0.336) | |
+
+### Findings
+1. **MAE features help B→A consistently.** M9 on MAE beats M9 on the default encoder for every MAE seed at K = 20 (0.476–0.555 vs 0.439), and by +0.07 to +0.08 on average at K ≥ 5.
+2. **In A→B, MAE is level with the default on average** (0.499 vs 0.492), with a very large spread between encoder seeds (0.417–0.625). The seed-0 result (0.625, with stand F1 0.14 → 0.64–0.73) was a lucky seed, not a reliable gain. The robustness check (pre-registered before seeds 1 and 2 were trained) caught this.
+3. **Encoder seed variance is now the biggest source of uncertainty** for anything built on the encoder. The Task 3 default uses a single SimCLR seed, so a fair MAE-vs-SimCLR comparison would also need SimCLR seeds 1–2 run through Task 3.
+4. **Self-training (M10) and slice averaging do not improve on M9.** Hand-crafted features are worse.
+5. **The feature source that works best depends on the direction** (random-init: B→A 0.535, A→B 0.327). Choosing a source per direction would be validation tuning, so this is reported as an observation only.
+
 ## Suggested order
 1. **Idea 1 diagnostic** (10 min). Decide whether motion features are worth building.
 2. **Ideas 1 + 2 (+ 3)** as one post-hoc experiment, with settings fixed in advance (~1 day).

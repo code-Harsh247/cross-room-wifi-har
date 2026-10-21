@@ -40,10 +40,14 @@ def dump(path: Path, obj) -> None:
 
 
 def load_feats(emb_dir: Path, source: str, meta) -> dict[str, np.ndarray]:
-    path = emb_dir / f"{source}.npy"
-    if not path.exists():
-        raise FileNotFoundError(f"{path} missing; run scripts/task3_embed.py")
-    feats = {"base": np.load(path)}
+    """Feature arrays for one source. ``a+b`` concatenates the caches of sources a and b."""
+    parts = []
+    for name in source.split("+"):
+        path = emb_dir / f"{name}.npy"
+        if not path.exists():
+            raise FileNotFoundError(f"{path} missing; run scripts/task3_embed.py (or task3_embed_posthoc.py)")
+        parts.append(np.load(path))
+    feats = {"base": np.concatenate(parts, axis=1) if len(parts) > 1 else parts[0]}
     if source == "default":
         rooms = meta["room"].to_numpy()[:, None]
         feats["adabn"] = np.where(rooms == "A", np.load(emb_dir / "adabn_A.npy"), np.load(emb_dir / "adabn_B.npy"))
