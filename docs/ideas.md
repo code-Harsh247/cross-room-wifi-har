@@ -39,6 +39,20 @@
 - **Quick diagnostic first (~10 min):** train on Room A's sit/stand/walk motion features, test on Room B's, 3-class. Above chance (0.33) means the signal exists.
 - **Expected:** walk vs still may transfer. Sit vs stand probably will not.
 - **Cost:** about ½ day. **Risk:** low. **Rules:** ✅ unlabelled data only.
+- **Diagnostic result (2026-10-21, `scripts/task3_motion_diagnostic.py` → `outputs/task3/motion_diagnostic.json`): ❌ not viable. The motion ordering is *reversed* between the rooms.**
+
+  | Mean temporal std (per-row normalized, dev windows) | sit | stand | walk |
+  |---|---|---|---|
+  | Room A | 0.025 | 0.050 | **0.229** (most motion, as expected) |
+  | Room B | 0.999 | 0.952 | **0.572** (least motion) |
+  | Room B after time smoothing, w = 15 | 0.229 | 0.223 | **0.196** (still least) |
+
+  - **Transfer** (train on source sit/stand/walk, test on target, labels for scoring only): every variant is at or below chance:
+    - 3-class 0.00–0.20 (chance 0.33);
+    - walk vs still 0.01–0.25 (chance 0.5).
+  - **Room-relative z-scores make it worse**, not better (walk vs still 0.01–0.04, i.e. near-perfectly inverted). The signal exists in both rooms, but with the opposite sign.
+  - **Second pass (post hoc):** time-smoothing both rooms (w = 5, 15) narrows Room B's gap but never flips the order. So Room B's row noise is not the whole explanation; in this data, Room B "walk" windows really are steadier than its "sit"/"stand" windows.
+  - **Consequence:** this also explains the systematic swaps in the U9 confusion matrices (B sit/stand → walk). No method can transfer a cue whose meaning is reversed between rooms without target labels for those classes. Ideas 2–4 cannot fix identity either: they can only rebalance or align distributions.
 
 ### 2. Balanced assignment (optimal transport / Sinkhorn)
 - **Idea:** predictions currently collapse into one or two classes (e.g. everything → walk). Force the predicted class proportions on the unlabelled target data to be roughly balanced, so every class gets its share.
