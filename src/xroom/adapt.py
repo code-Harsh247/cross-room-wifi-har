@@ -45,3 +45,77 @@ def adabn(encoder: FrozenEncoder, x: np.ndarray, meta: pd.DataFrame, room: str, 
     for p in model.parameters():
         p.requires_grad_(False)
     return FrozenEncoder(model, encoder.stats, encoder.device, encoder.run_dir)
+
+
+# ---------- embedding-level alignment ----------
+
+def per_room_standardize(f: np.ndarray, rooms: np.ndarray, fit_mask: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+    """M1: standardize each room's rows with that room's mean and std, estimated on the
+    ``fit_mask`` rows of the room (unlabelled development rows). Every row of the room,
+    including validation rows, is transformed with those statistics."""
+    f = np.asarray(f, dtype=np.float64)
+    rooms, fit_mask = np.asarray(rooms), np.asarray(fit_mask, dtype=bool)
+    out = np.empty_like(f)
+    for room in np.unique(rooms):
+        in_room = rooms == room
+        fit = in_room & fit_mask
+        if not fit.any():
+            raise ValueError(f"no fit rows for room {room!r}")
+        mu, sd = f[fit].mean(0), f[fit].std(0)
+        out[in_room] = (f[in_room] - mu) / np.maximum(sd, eps)
+    return out.astype(np.float32)
+
+
+def _sym_power(c: np.ndarray, power: float) -> np.ndarray:
+    w, v = np.linalg.eigh(c)
+    return (v * np.maximum(w, 1e-12) ** power) @ v.T
+
+
+def coral_fit(source: np.ndarray, target: np.ndarray, eps: float = 1.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """M2: CORAL (Sun et al., 2016). Fit on unlabelled source and target rows. Returns
+    (A, mu_s, mu_t) such that ``(x - mu_s) @ A + mu_t`` whitens source rows with the source
+    covariance and re-colours them with the target covariance (both + eps * I)."""
+    source, target = np.asarray(source, np.float64), np.asarray(target, np.float64)
+    d = source.shape[1]
+    cs = np.cov(source, rowvar=False) + eps * np.eye(d)
+    ct = np.cov(target, rowvar=False) + eps * np.eye(d)
+    return _sym_power(cs, -0.5) @ _sym_power(ct, 0.5), source.mean(0), target.mean(0)
+
+
+def coral_apply(x: np.ndarray, fit: tuple[np.ndarray, np.ndarray, np.ndarray]) -> np.ndarray:
+    a, mu_s, mu_t = fit
+    return ((np.asarray(x, np.float64) - mu_s) @ a + mu_t).astype(np.float32)
+
+
+# ---------- transductive prototype refinement ----------
+
+def _unit(x: np.ndarray) -> np.ndarray:
+    return x / np.maximum(np.linalg.norm(x, axis=-1, keepdims=True), 1e-12)
+
+
+def refine_prototypes(protos: np.ndarray, unlabeled: np.ndarray, support: np.ndarray | None = None,
+                      support_idx: np.ndarray | None = None, iters: int = 10, temperature: float = 0.1) -> np.ndarray:
+    """M4: soft k-means on the unit sphere, starting from ``protos`` (k, d).
+
+    Each iteration assigns unlabelled rows softly (softmax of cosine similarity / temperature)
+    and recomputes every prototype as the weighted mean of its unlabelled rows plus its pinned
+    support rows (``support`` (m, d) with class indices ``support_idx``; weight 1 each, hard).
+    No label other than the support's is used. Deterministic."""
+    p = _unit(np.asarray(protos, np.float64))
+    u = _unit(np.asarray(unlabeled, np.float64))
+    k = len(p)
+    s_sum = np.zeros_like(p)
+    s_cnt = np.zeros(k)
+    if support is not None and len(support):
+        s = _unit(np.asarray(support, np.float64))
+        np.add.at(s_sum, np.asarray(support_idx), s)
+        s_cnt = np.bincount(np.asarray(support_idx), minlength=k).astype(float)
+    for _ in range(iters):
+        logits = (u @ p.T) / temperature
+        logits -= logits.max(1, keepdims=True)
+        r = np.exp(logits)
+        r /= r.sum(1, keepdims=True)
+        num = r.T @ u + s_sum
+        den = r.sum(0) + s_cnt
+        p = _unit(num / np.maximum(den, 1e-12)[:, None])
+    return p.astype(np.float32)

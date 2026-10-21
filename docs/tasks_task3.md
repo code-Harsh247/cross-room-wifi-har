@@ -28,7 +28,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U1 | Config + protocol + access guard | ✅ |
 | U2 | Support sampling | ✅ |
 | U3 | Embedding caches (+ AdaBN) | ✅ |
-| U4 | Adaptation + classifiers | ⬜ |
+| U4 | Adaptation + classifiers | ✅ |
 | U5 | Metrics + episode runner | ⬜ |
 | U6 | Main results (default M1 vs M0, bounds) | ⬜ |
 | U7 | Routing: oracle vs predicted | ⬜ |
@@ -116,15 +116,15 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U4: Adaptation + classifiers (PRD FR-4, §6)
-- [ ] `xroom.adapt`:
+- [x] `xroom.adapt`:
   - `per_room_standardize(f, rooms, fit_mask)` (stats from `fit_mask` rows of each room = dev rows);
   - `coral(source, target)`;
   - `refine_prototypes(protos, unlabeled, fixed=support, iters, temp)` (soft k-means; iterations and temperature fixed in config).
-- [ ] `xroom.fewshot`:
+- [x] `xroom.fewshot`:
   - `prototypes(f, labels)`;
   - `nearest_centroid(f, protos, metric="cosine")`;
   - `logreg_classifier(...)` (M5).
-- [ ] Tests on toy data
+- [x] Tests on toy data
 
 🔒 **Gate U4**
 | Check | Pass if |
@@ -280,6 +280,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U1 | U1 commit ("Add Task 3 config, protocol and label access guard (U1)") | D1 (`default_method: M1`) and every ablation hyperparameter (CORAL eps 1.0, AdaBN batch 256, refinement 10 iters / τ 0.1, logreg C 1.0) committed in `configs/task3.yaml` while `outputs/task3/` did not exist (no Task 3 result yet). 13 new tests: label sets both directions; masks partition rows; guard shows only source-dev + all windows of support captures (20 random supports per direction, toy data) and on real data; no val label visible; sentinel label in hidden target-dev and val rows never visible; invalid support (val, shared class, source room, unknown ID) raises. Config activity sets match the data. Suite 99 passed. Added `load_task3_config` to `xroom.config`. |
 | U2 | U2 commit | 20 manifests (`outputs/task3/support/{AtoB,BtoA}_seed{0..9}.json`), byte-identical on re-run. Per class: K captures (B targets 3K windows, A targets K windows); all target dev; nested K=1 ⊂ 5 ⊂ 10 ⊂ 20; same seed identical, different seeds differ. Distinct captures used at K=20 over 10 draws (pool): empty 135 (242), lying 145 (326), fall 128 (177), sitdown 114 (155), standup 120 (155), all ≥ 100. Per-class generator = (seed, crc32(direction/class)). Suite 105 passed. |
 | U3 | U3 commit | Caches (4680 rows, float32, finite) in 16 s: default 128-d, handcrafted 484-d, random_init_s0 128-d, adabn_A / adabn_B 128-d (each room's BN stats from its own dev windows; M3 uses room-matched rows). default.npy vs fresh `embed` max diff 0.0. AdaBN per-dim std min 0.37. Dev-holdout within-room probe default A 0.918 / B 0.987 vs AdaBN A 0.920 / B 0.979 (drop −0.003 / 0.008 ≤ 0.05). random_init_s0 dev-holdout reproduces the Task 2 saved value exactly (A 0.951 / B 0.804). (Default dev-holdout 0.918 / 0.987 vs Task 2 saved 0.913 / 0.985: same small cross-machine probe-tuning difference seen before; val numbers matched exactly.) Tests: original encoder untouched; only BN running stats change; val windows and other room's windows have no effect; deterministic; no-dev room raises; cache = encoder. Suite 111 passed. |
+| U4 | U4 commit | Toy-data gate: per-room standardization gives dev mean 0 / std 1 per room (tol 1e-5) and val rows never change the stats; CORAL (`coral_fit` / `coral_apply`) matches the target covariance and mean within 1e-3; separable clusters 100% with cosine and euclidean nearest centroid, cosine scale-invariant; refinement (soft k-means on the unit sphere, support pinned) moves biased prototypes to cosine > 0.98 with the true centres, keeps class identity, deterministic; `per_room_standardize`, `coral_fit`, `adabn` take no label argument and `refine_prototypes` only support indices; `logreg_classifier` ignores unlabelled rows. Suite 117 passed. |
 | U5 | | |
 | U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |
 | U7 | | predicted − oracle: |

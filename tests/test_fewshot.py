@@ -202,3 +202,38 @@ def test_manifest_roundtrip(tmp_path):
         assert sorted(load_support(path, k)) == sorted(sample_support(p, meta, k, 7))
     with pytest.raises(ValueError):
         load_support(path, 3)
+
+
+# ---------- U4: classifiers ----------
+
+from xroom.fewshot import logreg_classifier, nearest_centroid, prototypes  # noqa: E402
+
+
+def test_prototypes_and_nearest_centroid_on_separable_clusters():
+    rng = np.random.default_rng(0)
+    centres = np.array([[4.0, 0, 0], [0, 4.0, 0], [0, 0, 4.0]])
+    x = np.vstack([c + 0.3 * rng.normal(size=(30, 3)) for c in centres])
+    y = np.repeat(["sit", "stand", "walk"], 30).astype(object)
+    labels = y.copy()
+    labels[::4] = None  # unlabelled rows are ignored
+    classes, p = prototypes(x, labels)
+    assert classes == ("sit", "stand", "walk") and p.shape == (3, 3)
+    for metric in ("cosine", "euclidean"):
+        assert (nearest_centroid(x, classes, p, metric) == y).all()
+    # cosine is scale-invariant
+    assert (nearest_centroid(x * 7.5, classes, p) == nearest_centroid(x, classes, p)).all()
+    with pytest.raises(ValueError):
+        prototypes(x, labels, classes=("sit", "lying"))
+    with pytest.raises(ValueError):
+        nearest_centroid(x, classes, p, "manhattan")
+
+
+def test_logreg_classifier_ignores_unlabelled_rows():
+    rng = np.random.default_rng(1)
+    x = np.vstack([rng.normal(-2, 1, (40, 4)), rng.normal(2, 1, (40, 4))])
+    y = np.array(["empty"] * 40 + ["lying"] * 40, dtype=object)
+    y_vis = y.copy()
+    y_vis[::3] = None
+    m = logreg_classifier(x, y_vis, c=1.0)
+    assert set(m.classes_) == {"empty", "lying"}
+    assert (m.predict(x) == y).mean() > 0.95

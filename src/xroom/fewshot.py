@@ -177,3 +177,40 @@ def load_support(path: str | Path, k: int) -> list[str]:
 
 def manifest_path(cfg: dict, direction: str, seed: int) -> Path:
     return Path(cfg["paths"]["task3_dir"]) / "support" / f"{direction}_seed{seed}.json"
+
+
+# ---------- classifiers (FR-4) ----------
+
+def prototypes(f: np.ndarray, labels, classes=None) -> tuple[tuple[str, ...], np.ndarray]:
+    """Class means. ``labels`` aligned with ``f``; NA / None rows are ignored. Returns
+    (classes, (k, d) prototypes) in sorted class order (or the given ``classes``)."""
+    lab = pd.Series(labels).to_numpy(dtype=object)
+    known = pd.notna(lab)
+    classes = tuple(sorted(set(lab[known]))) if classes is None else tuple(classes)
+    missing = [c for c in classes if not (lab[known] == c).any()]
+    if missing:
+        raise ValueError(f"no rows for classes {missing}")
+    f = np.asarray(f, dtype=np.float64)
+    return classes, np.stack([f[known & (lab == c)].mean(0) for c in classes]).astype(np.float32)
+
+
+def nearest_centroid(f: np.ndarray, classes, protos: np.ndarray, metric: str = "cosine") -> np.ndarray:
+    """Assign each row to the closest prototype (cosine similarity or euclidean distance)."""
+    f, protos = np.asarray(f, np.float64), np.asarray(protos, np.float64)
+    if metric == "cosine":
+        fn = f / np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-12)
+        pn = protos / np.maximum(np.linalg.norm(protos, axis=1, keepdims=True), 1e-12)
+        idx = np.argmax(fn @ pn.T, axis=1)
+    elif metric == "euclidean":
+        idx = np.argmin(((f[:, None, :] - protos[None]) ** 2).sum(-1), axis=1)
+    else:
+        raise ValueError(f"unknown metric {metric!r}")
+    return np.asarray(classes, dtype=object)[idx]
+
+
+def logreg_classifier(f_train: np.ndarray, y_train, c: float = 1.0, seed: int = 0):
+    """M5: StandardScaler + class-balanced logistic regression (same model as Task 1)."""
+    from .room_classifier import make_linear_model  # local import keeps fewshot light
+    y = pd.Series(y_train).to_numpy(dtype=object)
+    keep = pd.notna(y)
+    return make_linear_model(c, seed).fit(np.asarray(f_train)[keep], y[keep].astype(str))
