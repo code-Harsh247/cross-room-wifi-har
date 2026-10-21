@@ -29,7 +29,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U2 | Support sampling | ✅ |
 | U3 | Embedding caches (+ AdaBN) | ✅ |
 | U4 | Adaptation + classifiers | ✅ |
-| U5 | Metrics + episode runner | ⬜ |
+| U5 | Metrics + episode runner | ✅ |
 | U6 | Main results (default M1 vs M0, bounds) | ⬜ |
 | U7 | Routing: oracle vs predicted | ⬜ |
 | U8 | Ablations + controls | ⬜ |
@@ -139,11 +139,11 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 ---
 
 ## U5: Metrics + episode runner (PRD FR-5, §4)
-- [ ] `src/xroom/task3_metrics.py`:
+- [x] `src/xroom/task3_metrics.py`:
   - `episode_scores(y_true, y_pred, protocol)` → overall / exclusive / shared macro-F1, per-class F1, confusion matrix (reuse `xroom.probe.macro_f1`, `per_class_f1`);
   - `aggregate(draws)` → mean ± std, plus a capture bootstrap CI of the mean.
-- [ ] `scripts/task3_run.py --methods M0 M1 ... --sources default ... --directions AtoB BtoA` → `outputs/task3/runs/<direction>/<source>/<method>/K{k}_seed{r}.json` + `summary.json`.
-- [ ] Tests
+- [x] `scripts/task3_run.py --methods M0 M1 ... --sources default ... --directions AtoB BtoA` → `outputs/task3/runs/<direction>/<source>/<method>/K{k}_seed{r}.json` + `summary.json`.
+- [x] Tests
 
 🔒 **Gate U5**
 | Check | Pass if |
@@ -271,6 +271,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | 2026-10-21 | D5: source-only classes excluded from the target label space | The target room's activity set is known |
 | 2026-10-21 | D6: headline uses oracle routing (target val windows); predicted routing reported alongside | The brief asks to compare with the true room; the router is 1.000 on val |
 | 2026-10-21 | AdaBN caches are full arrays per room (`adabn_A.npy`, `adabn_B.npy`, all 4680 rows each); M3 takes each window from its own room's array | Simple aligned indexing; the other room's rows are unused |
+| 2026-10-21 | M6 (input-level per-room normalization) needs its own embedding cache; it is added in U8 with the other ablations, not in the U5 runner | U5 only needs the method harness; M0–M5 + UB + CHANCE are implemented |
 | | | |
 
 ## Results log (fill in at each gate)
@@ -281,7 +282,7 @@ Legend: `[x]` done · `[ ]` to do · 🔒 **Gate**: every check must pass before
 | U2 | U2 commit | 20 manifests (`outputs/task3/support/{AtoB,BtoA}_seed{0..9}.json`), byte-identical on re-run. Per class: K captures (B targets 3K windows, A targets K windows); all target dev; nested K=1 ⊂ 5 ⊂ 10 ⊂ 20; same seed identical, different seeds differ. Distinct captures used at K=20 over 10 draws (pool): empty 135 (242), lying 145 (326), fall 128 (177), sitdown 114 (155), standup 120 (155), all ≥ 100. Per-class generator = (seed, crc32(direction/class)). Suite 105 passed. |
 | U3 | U3 commit | Caches (4680 rows, float32, finite) in 16 s: default 128-d, handcrafted 484-d, random_init_s0 128-d, adabn_A / adabn_B 128-d (each room's BN stats from its own dev windows; M3 uses room-matched rows). default.npy vs fresh `embed` max diff 0.0. AdaBN per-dim std min 0.37. Dev-holdout within-room probe default A 0.918 / B 0.987 vs AdaBN A 0.920 / B 0.979 (drop −0.003 / 0.008 ≤ 0.05). random_init_s0 dev-holdout reproduces the Task 2 saved value exactly (A 0.951 / B 0.804). (Default dev-holdout 0.918 / 0.987 vs Task 2 saved 0.913 / 0.985: same small cross-machine probe-tuning difference seen before; val numbers matched exactly.) Tests: original encoder untouched; only BN running stats change; val windows and other room's windows have no effect; deterministic; no-dev room raises; cache = encoder. Suite 111 passed. |
 | U4 | U4 commit | Toy-data gate: per-room standardization gives dev mean 0 / std 1 per room (tol 1e-5) and val rows never change the stats; CORAL (`coral_fit` / `coral_apply`) matches the target covariance and mean within 1e-3; separable clusters 100% with cosine and euclidean nearest centroid, cosine scale-invariant; refinement (soft k-means on the unit sphere, support pinned) moves biased prototypes to cosine > 0.98 with the true centres, keeps class identity, deterministic; `per_room_standardize`, `coral_fit`, `adabn` take no label argument and `refine_prototypes` only support indices; `logreg_classifier` ignores unlabelled rows. Suite 117 passed. |
-| U5 | | |
+| U5 | U5 commit | `episode_scores` overall = sklearn macro-F1 over target labels; exclusive / shared = means of the per-class F1s (toy); confusion-based F1 = `per_class_f1`; draw-mean bootstrap (captures resampled within class, same resample for all draws) brackets the mean and collapses to [1, 1] for perfect predictions. Methods M0–M5 in `xroom.task3_methods` read labels only via `visible_labels`: sentinel test on real data (every non-support target label incl. all val set to `SENTINEL`) leaves predictions of all six methods unchanged in both directions; the only direct `meta["activity"]` read is the separate UB reference. Two full `--methods M0` runs (2 dirs × 4 K × 10 draws) byte-identical. Smoke `--methods M0 M1 --k 5 --draws 2`: scores in [0, 1], confusion rows = val counts per class (B 75 each; A 25, sit 24), support 10 / 15 captures. Suite 123 passed. |
 | U6 | | A→B M1 overall / excl / shared @K=1,5,10,20: ; B→A: ; M0: ; upper bound: |
 | U7 | | predicted − oracle: |
 | U8 | | takeaways: |
