@@ -189,6 +189,30 @@ Overall macro-F1 (mean of 10 draws):
    **Walk remains the hardest shared class.** This matches the reversed motion cue from idea 1.
 5. **Status:** post-hoc ablation (designed after U6–U8). The pre-registered default stays M1, and the report shows both. The SimCLR seed 0 encoder is Abhinav's committed one; seeds 1 and 2 were trained on this machine (PyTorch 2.9.1). MAE checkpoints are in `outputs/task2/t3_*` (not committed).
 
+## Batch 4 results: bigger MAE ensemble (5 seeds) (2026-10-22, post-hoc)
+
+**Setup** (pre-registered in `configs/task3_posthoc.yaml` before training):
+- Two more MAE seeds (`t3_mae_s3`, `t3_mae_s4`), same command and Task 2 defaults, label-free checkpoint selection.
+- Ensemble size fixed at 5 (`ens_mae5`, M11). No subset of seeds is chosen by a score.
+
+Overall macro-F1 (mean of 10 draws):
+
+| System | A→B K=1 / 5 / 10 / 20 | B→A K=1 / 5 / 10 / 20 |
+|---|---|---|
+| M11 ens_mae (3 seeds) | 0.383 / 0.486 / 0.545 / 0.562 | 0.282 / 0.455 / 0.520 / 0.574 |
+| **M11 ens_mae5 (5 seeds)** | 0.362 / 0.462 / 0.512 / 0.530 | 0.255 / 0.461 / 0.536 / **0.587** |
+| M9 on the default encoder | 0.314 / 0.398 / 0.472 / 0.492 | 0.241 / 0.360 / 0.396 / 0.439 |
+
+M9 per MAE seed at K = 20:
+- A→B 0.625 / 0.417 / 0.454 / 0.441 / 0.478 (mean 0.483);
+- B→A 0.476 / 0.555 / 0.515 / 0.554 / 0.557 (mean 0.531).
+
+### Findings
+1. **A bigger ensemble did not improve A→B.** The 5-seed ensemble is 0.020–0.033 below the 3-seed one at every K (it wins 0–1 of 10 paired draws). The two new seeds are ordinary A→B seeds (0.441, 0.478), so they dilute the unusually good seed 0 (0.625). In B→A the 5-seed ensemble is slightly better at K ≥ 5 (+0.006 to +0.016) and worse at K = 1.
+2. **The 3-seed A→B score was partly seed luck.** With 5 seeds the average MAE seed scores 0.483 (not 0.499) in A→B. **The 5-seed ensemble is the more trustworthy estimate of what the MAE ensemble achieves: 0.530 (A→B) and 0.587 (B→A) at K = 20.**
+3. **It still clearly beats M9 on the default encoder:** +0.04 to +0.07 A→B (wins 9–10 of 10 draws at every K) and +0.10 to +0.15 B→A at K ≥ 5 (wins 10 of 10). At K = 1 in B→A there's no real gain (+0.015, 5 of 10).
+4. **For the report:** quote the **5-seed** ensemble as the best post-hoc system (less seed-dependent), and mention the 3-seed numbers as the earlier, optimistic estimate.
+
 ## Suggested order
 1. **Idea 1 diagnostic** (10 min). Decide whether motion features are worth building.
 2. **Ideas 1 + 2 (+ 3)** as one post-hoc experiment, with settings fixed in advance (~1 day).
