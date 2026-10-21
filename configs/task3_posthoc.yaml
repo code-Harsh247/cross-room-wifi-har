@@ -1,0 +1,22 @@
+# Task 3 POST-HOC experiments (docs/ideas.md). Layered on task3.yaml, which is NOT changed:
+# the pre-registered default (D1 = M1) and every U6-U8 setting stay exactly as committed.
+#
+# These methods were designed AFTER seeing the U6-U8 results and are reported as post-hoc
+# ablations only. Their settings below were fixed (2026-10-21) BEFORE any of them was run;
+# they are not tuned on target scores.
+base_config: task3.yaml
+
+posthoc:
+  methods:
+    M7: M1 + balanced bias. Sinkhorn on unlabelled target dev embeddings vs M1 prototypes with
+        uniform class marginals; the class potentials become per-class score offsets applied to
+        target val (argmax of cosine / temperature + offset).
+    M8: M1 + balanced prototype re-estimation. Prototypes = transport-weighted means of the
+        unlabelled target dev embeddings (Sinkhorn plan, uniform marginals) plus the pinned
+        support windows; then nearest centroid.
+    M9: M5 + balanced bias. Logistic-regression log-probabilities on unlabelled target dev,
+        Sinkhorn with uniform class marginals; potentials as per-class offsets on target val.
+  balance:
+    temperature: 0.1     # cosine similarities are divided by this (M7, M8); M9 uses log-probs as is
+    iters: 100           # Sinkhorn iterations (log domain)
+    marginal: uniform    # assumed target class proportions (a prior, not a label)
