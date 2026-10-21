@@ -38,3 +38,21 @@ posthoc:
   # ---- batch 2b robustness check (fixed after seeing mae_s0, before training these) ----
   mae_seeds: [0, 1, 2]   # MAE encoders t3_mae_s<seed>, same command and defaults as seed 0;
                          #   sources mae_s1, mae_s2 with M1 / M9 / M10, reported as mean over seeds
+
+  # ---- batch 3 (fixed 2026-10-21 after batch 2, BEFORE training / running any of these) ----
+  simclr_seeds: [1, 2]   # SimCLR encoders t3_simclr_s<seed> (scripts/task2_pretrain.py --run
+                         #   t3_simclr_s<seed> --seed <seed>, Task 2 defaults, label-free selection);
+                         #   sources simclr_s1, simclr_s2. Seed 0 = the committed default encoder.
+  ensembles:             # every member is weighted equally; no member is chosen by a score
+    ens_mae: [mae_s0, mae_s1, mae_s2]
+    ens_simclr: [default, simclr_s1, simclr_s2]
+    ens_all: [default, simclr_s1, simclr_s2, mae_s0, mae_s1, mae_s2]
+  # M11: probability ensemble. For each member: M1 features of that member, class-balanced
+  #   logistic regression (as M5/M9) on source shared + support. Average the members' predicted
+  #   probabilities; Sinkhorn (uniform class marginals, posthoc.balance) on the log of the mean
+  #   probabilities of unlabelled target dev windows; the class offsets are applied to target val.
+  # Concatenation ensembles: M9 on sources mae_s0+mae_s1+mae_s2 and default+simclr_s1+simclr_s2.
+  batch3_runs:
+    - {methods: [M1, M9], sources: [simclr_s1, simclr_s2]}
+    - {methods: [M11], sources: [ens_mae, ens_simclr, ens_all]}
+    - {methods: [M9], sources: [mae_s0+mae_s1+mae_s2, default+simclr_s1+simclr_s2]}
