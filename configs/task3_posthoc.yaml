@@ -20,3 +20,17 @@ posthoc:
     temperature: 0.1     # cosine similarities are divided by this (M7, M8); M9 uses log-probs as is
     iters: 100           # Sinkhorn iterations (log domain)
     marginal: uniform    # assumed target class proportions (a prior, not a label)
+
+  # ---- batch 2 (fixed 2026-10-21, after the M7-M9 results, BEFORE running any of these) ----
+  selftrain:             # M10: M9 + balanced self-training on unlabelled target dev windows
+    rounds: 2            # each round: balanced assignment (Sinkhorn on log-probs) of target dev
+                         #   non-support windows -> pseudo-labels -> refit the logistic regression
+                         #   on source shared + support + pseudo-labelled windows
+    keep_frac: 0.5       # per class, keep the most confident half of its pseudo-labelled windows
+  slices: [25, 50]       # idea 7: default-encoder embeddings of contiguous 25- / 50-row slices,
+                         #   averaged per 150-row window (sources slice25, slice50)
+  mae:                   # idea 6: a label-free MAE encoder as an extra feature source
+    run: t3_mae_s0       # outputs/task2/<run>, trained with: scripts/task2_pretrain.py
+    seed: 0              #   --run t3_mae_s0 --seed 0 --method mae (Task 2 defaults otherwise)
+  batch2_sources: [handcrafted, random_init_s0, default+random_init_s0, slice25, slice50, mae_s0]
+  batch2_methods: [M1, M9, M10]   # each run on every batch-2 source (M10 on default too)
