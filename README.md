@@ -89,7 +89,7 @@ python scripts/task2_probe.py --baselines-only --shuffle-labels
 python scripts/task2_probe.py --encoder simclr_s0 simclr_s1 simclr_s2 --summary simclr_default
 
 # 5.5 Publish the label-clean default encoder for Task 3
-python scripts/task2_publish_default.py                     # outputs/task2/default/ + PROVENANCE.md
+python scripts/task2_publish_default.py                     # rewrites the committed models/task2_default/ (see note below)
 
 # 5.6 Figures (copied to reports/figures/task2_*.png)
 python scripts/task2_figures.py
@@ -119,6 +119,8 @@ python scripts/task2_check_report.py                        # expect "161 matche
 - **Probes are deterministic.** Given the same encoders, the probe scripts give byte-identical `metrics.json` files (one BLAS thread, cuDNN deterministic mode).
 - **Pre-training is seeded but may not match exactly on another GPU, driver or PyTorch version.** Expect small differences (about ±0.01 macro-F1) in the SSL rows. If they appear, run 5.8: `task2_check_report.py` will list any report number that no longer matches.
 
+**The default encoder ships with the repo.** `models/task2_default/` holds the exact encoder (`simclr_s0`, epoch 54) behind the Task 2 numbers, so Task 3 needs no training. Step 5.5 overwrites it. Run 5.5 only when you mean to republish, because a retrained encoder on other hardware will differ slightly.
+
 **Using the encoder (Task 3):**
 ```python
 from xroom.config import load_task2_config
@@ -127,7 +129,7 @@ from xroom.encoder import load_encoder, embed
 
 cfg = load_task2_config()
 x, meta = load_windows(cfg)
-z = embed(load_encoder(cfg), x)      # (4680, 128) embeddings from outputs/task2/default
+z = embed(load_encoder(cfg), x)      # (4680, 128) embeddings from the committed models/task2_default/
 ```
 
 ## 6. Repository layout
@@ -158,7 +160,8 @@ Full rules: [CLAUDE.md](CLAUDE.md). AI-tool use and member contributions: [docs/
 | Symptom | Fix |
 |---|---|
 | `FileNotFoundError ... windows_L150.npy` | Run `python scripts/build_windows.py --rebuild`. |
-| `no encoder at outputs/task2/default` | Run steps 5.2 (seed 0 at least) and 5.5. |
+| `no encoder at models/task2_default` | It is committed; run `git pull`. To rebuild it: steps 5.2 (seed 0) and 5.5. |
+| `no encoder at outputs/task2/simclr_s0` (or another run) | Training runs are git-ignored; run step 5.2 for that seed. |
 | 2 tests skipped: "routers not built" | Run `python scripts/task1_router_variants.py`. |
 | `torch.cuda.is_available()` is `False` | Install the CUDA build of PyTorch (§2); everything still runs on CPU, slowly. |
 | Probes take many minutes | Make sure you run the committed scripts; they pin BLAS to one thread, without which logistic regression is ~60× slower. |

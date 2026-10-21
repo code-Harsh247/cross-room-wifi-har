@@ -2,3 +2,6 @@
 csidata/** -text -diff
 csvdata/** -text -diff
 *.pcap binary
+
+# Published Task 2 encoder: binary, no diffs
+models/** -text -diff

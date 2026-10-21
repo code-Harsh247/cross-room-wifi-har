@@ -24,6 +24,7 @@ Three tasks:
   - Task 1: `features`, `room_classifier`, `eval`, `router`
 - `scripts/`: one entry point per stage. `tests/`: pytest. `configs/task1.yaml`: all settings.
 - `reports/`: write-ups. `reports/figures/`: committed figures.
+- `models/task2_default/`: the committed Task 2 default encoder (`load_encoder(cfg)` loads it).
 - `outputs/` and `data_cache/` are git-ignored, so copy final figures to `reports/figures/`.
 - **The raw dataset is committed** at the repo root:
   - `csidata/`: Room A, including `validation/`;
@@ -46,7 +47,7 @@ cfg = load_config()
 x, meta = load_windows(cfg)        # (4680, 150, 256) float16; meta: capture_id, room, activity, split, dev_fold, start
 table, seqs = load_sequences(cfg)  # full per-capture sequences (A: 150 rows, B: 500 rows)
 
-# Task 2 encoder for Task 3 (label-clean default; train + publish with scripts/task2_*.py, see the Task 2 report §10)
+# Task 2 encoder for Task 3 (label-clean default, committed in models/task2_default/; no training needed)
 from xroom.config import load_task2_config
 from xroom.encoder import load_encoder, embed
 z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
@@ -90,4 +91,5 @@ z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
   - imperative subject line;
   - **no AI attribution or `Co-Authored-By` lines** (`.claude/settings.json` disables them).
 - **Never commit** `data_cache/`, `outputs/` or model checkpoints. Large generated files belong in the git-ignored folders.
+  - **One exception:** the published Task 2 default encoder in `models/task2_default/` (~4 MB), written only by `scripts/task2_publish_default.py`. It is committed so Task 3 builds on the exact encoder behind the Task 2 numbers, on every machine. Do not add other checkpoints to `models/`.
 - **Windows + Git Bash:** backslashes in heredoc-generated Python can get mangled. Prefer writing files with the editor tools over shell heredocs.
