@@ -26,6 +26,7 @@ Three tasks:
 - `scripts/`: one entry point per stage. `tests/`: pytest. `configs/task1.yaml`: all settings.
 - `reports/`: write-ups. `reports/figures/`: committed figures.
 - `models/task2_default/`: the committed Task 2 default encoder (`load_encoder(cfg)` loads it).
+- `models/task3_mae_s0…s4/`: the committed MAE encoders of the best post-hoc Task 3 ensemble (`scripts/task3_embed_posthoc.py` loads them).
 - `results/`: committed snapshot of `outputs/` without checkpoints (metrics, tables, histories, figures). Refresh it with `python scripts/snapshot_results.py` and commit it with any report whose numbers changed.
 - `outputs/` and `data_cache/` are git-ignored, so copy final figures to `reports/figures/`.
 - **The raw dataset is committed** at the repo root:
@@ -93,5 +94,8 @@ z = embed(load_encoder(load_task2_config()), x)   # (n, 128)
   - imperative subject line;
   - **no AI attribution or `Co-Authored-By` lines** (`.claude/settings.json` disables them).
 - **Never commit** `data_cache/`, `outputs/` or model checkpoints. Large generated files belong in the git-ignored folders.
-  - **One exception:** the published Task 2 default encoder in `models/task2_default/` (~4 MB), written only by `scripts/task2_publish_default.py`. It is committed so Task 3 builds on the exact encoder behind the Task 2 numbers, on every machine. Do not add other checkpoints to `models/`.
+  - **Two exceptions, both in `models/`:**
+    - the published Task 2 default encoder in `models/task2_default/` (~4 MB), written only by `scripts/task2_publish_default.py`. It is committed so Task 3 builds on the exact encoder behind the Task 2 numbers, on every machine.
+    - the five label-free MAE encoders in `models/task3_mae_s0/` … `models/task3_mae_s4/` (~3.3 MB each), written only by `scripts/task3_publish_mae.py`. They are the members of the best post-hoc Task 3 system (5-seed ensemble `ens_mae5`, M11), committed so its numbers rebuild exactly on every machine.
+    - Do not add any other checkpoints to `models/`.
 - **Windows + Git Bash:** backslashes in heredoc-generated Python can get mangled. Prefer writing files with the editor tools over shell heredocs.

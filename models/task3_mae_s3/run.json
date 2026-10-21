@@ -1,0 +1,12 @@
+{
+ "method": "mae",
+ "seed": 3,
+ "git": "9e710fcac4355fc1f61fbd669adeb21078287f25",
+ "device": "cuda",
+ "runtime_s": 276.8,
+ "best_epoch": 59,
+ "selection": "lowest SSL loss on dev-holdout crops (label-free)",
+ "n_train_captures": 1603,
+ "n_holdout_captures": 401,
+ "n_excluded_captures": 0
+}

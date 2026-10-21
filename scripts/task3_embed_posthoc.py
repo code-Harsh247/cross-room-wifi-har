@@ -4,9 +4,11 @@ Writes outputs/task3/emb/<name>.npy, (4680, 128) float32, rows aligned with wind
   slice25, slice50   default encoder on contiguous 25- / 50-row slices of each 150-row window,
                      slice embeddings averaged per window (25 rows is below the encoder's
                      documented 32-row minimum; it runs and gives finite embeddings)
-  mae_s<seed>        label-free MAE encoders outputs/task2/t3_mae_s<seed> for posthoc.mae_seeds (train first with
-                     scripts/task2_pretrain.py --run t3_mae_s<seed> --seed <seed> --method mae);
-                     skipped with a message if the run does not exist
+  mae_s<seed>        label-free MAE encoders: the committed copies in models/task3_mae_s<seed>/
+                     (published by scripts/task3_publish_mae.py), else outputs/task2/t3_mae_s<seed>
+                     (scripts/task2_pretrain.py --run t3_mae_s<seed> --seed <seed> --method mae)
+  simclr_s<seed>     SimCLR seeds 1-2 from outputs/task2/t3_simclr_s<seed> (not committed)
+                     Encoders that do not exist are skipped with a message.
 The concatenated source ``default+random_init_s0`` is built on the fly by scripts/task3_run.py.
 
 Usage:  python scripts/task3_embed_posthoc.py
@@ -25,7 +27,7 @@ import torch  # noqa: E402
 
 from xroom.config import load_config  # noqa: E402
 from xroom.dataset import load_windows  # noqa: E402
-from xroom.encoder import embed, load_encoder  # noqa: E402
+from xroom.encoder import FrozenEncoder, default_device, embed, load_encoder, load_run  # noqa: E402
 
 
 def slice_embeddings(enc, x: np.ndarray, rows: int, chunk: int = 512) -> np.ndarray:
@@ -61,9 +63,11 @@ def main() -> None:
     runs += [("simclr", s) for s in cfg["posthoc"].get("simclr_seeds", [])]
     for family, seed in runs:
         run = f"t3_{family}_s{seed}"
-        run_dir = Path(cfg["paths"]["encoder_dir"]) / run
+        published = ROOT / "models" / f"task3_{family}_s{seed}"  # committed copy (MAE seeds)
+        run_dir = published if (published / "run.json").exists() else Path(cfg["paths"]["encoder_dir"]) / run
         if (run_dir / "run.json").exists():  # run.json is written only when training has finished
-            f = embed(load_encoder(cfg, run=run), x)
+            model, stats = load_run(run_dir, default_device())
+            f = embed(FrozenEncoder(model, stats, default_device(), run_dir), x)
             assert np.isfinite(f).all()
             np.save(out / f"{family}_s{seed}.npy", f)
             info[f"{family}_s{seed}"] = {"shape": list(f.shape), "run": run}

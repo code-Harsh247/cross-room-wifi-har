@@ -199,3 +199,20 @@ def test_probability_ensemble_of_one_member_equals_m9():
                           predict("M9", feats, meta, P_AB, support, CFG_PH, seed=1))
     with pytest.raises(ValueError):
         predict("M11", feats, meta, P_AB, support, CFG_PH, seed=1)  # no members
+
+
+# ---------- published post-hoc MAE encoders (models/task3_mae_s*) ----------
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 3, 4])
+def test_published_mae_encoders_load_and_embed(seed):
+    from xroom.encoder import FrozenEncoder, embed, load_run
+    run_dir = PROJECT_ROOT / "models" / f"task3_mae_s{seed}"
+    if not (run_dir / "encoder.pt").exists():
+        pytest.skip("published MAE encoders not present (scripts/task3_publish_mae.py)")
+    run = __import__("json").loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert run["method"] == "mae" and run["seed"] == seed and "label-free" in run["selection"]
+    assert "no activity labels" in (run_dir / "PROVENANCE.md").read_text(encoding="utf-8")
+    model, stats = load_run(run_dir, "cpu")
+    x = np.random.default_rng(seed).uniform(10, 1000, size=(4, 150, 256)).astype(np.float32)
+    z = embed(FrozenEncoder(model, stats, "cpu", run_dir), x)
+    assert z.shape == (4, 128) and np.isfinite(z).all()
